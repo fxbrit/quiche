@@ -1,0 +1,1 @@
+Contains the patch by @maxdinatale to implement the Spin Bit. Further versions are rebased or add extra features.
