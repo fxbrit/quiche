@@ -1,1 +1,1 @@
-Contains the patch by @maxdinatale to implement the Spin Bit. Further versions are rebased or add extra features.
+Contains the original patch by @maxdinatale to implement the Spin Bit. Further versions are rebased to work with the current changes or they add extra features.

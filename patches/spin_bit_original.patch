@@ -128,13 +128,12 @@ index bc792e17..b8f8f9b7 100644
    bool has_stop_waiting() const { return packet_.has_stop_waiting; }
  
    // Sets the encrypter to use for the encryption level and updates the max
-@@ -686,6 +686,9 @@
-   // accept. There is no limit for QUIC_CRYPTO connections, but QUIC+TLS
-   // negotiates this during the handshake.
-   QuicByteCount max_datagram_frame_size_;
+@@ -696,6 +700,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
+   const bool close_connection_if_fail_to_serialzie_coalesced_packet_ =
+       GetQuicReloadableFlag(
+           quic_close_connection_if_fail_to_serialzie_coalesced_packet2);
 +
 +  bool current_spin_bit = false;
-+
  };
  
  }  // namespace quic
@@ -142,10 +141,10 @@ diff --git a/quiche/quic/core/quic_packets.cc b/quiche/quic/core/quic_packets.cc
 index 57d6ba7f..1baf6389 100644
 --- a/quiche/quic/core/quic_packets.cc
 +++ b/quiche/quic/core/quic_packets.cc
-@@ -177,7 +177,8 @@
-       retry_token_length_length(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0),
+@@ -180,7 +180,8 @@ QuicPacketHeader::QuicPacketHeader()
+       retry_token_length_length(VARIABLE_LENGTH_INTEGER_LENGTH_0),
        retry_token(absl::string_view()),
-       length_length(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0),
+       length_length(VARIABLE_LENGTH_INTEGER_LENGTH_0),
 -      remaining_packet_length(0) {}
 +      remaining_packet_length(0),
 +      spin_bit(false) {}
