@@ -160,6 +160,8 @@ struct QUIC_EXPORT_PRIVATE QuicPacketHeader {
 
   bool operator==(const QuicPacketHeader& other) const;
   bool operator!=(const QuicPacketHeader& other) const;
+  
+  bool spin_bit;
 };
 
 struct QUIC_EXPORT_PRIVATE QuicPublicResetPacket {
