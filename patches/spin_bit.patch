@@ -157,16 +157,6 @@ index 57d6ba7f..1baf6389 100644
    if (header.nonce != nullptr) {
      os << ", diversification_nonce: "
         << absl::BytesToHexString(
-@@ -528,7 +532,8 @@ ReceivedPacketInfo::ReceivedPacketInfo(const QuicSocketAddress& self_address,
-       version_label(0),
-       version(ParsedQuicVersion::Unsupported()),
-       destination_connection_id(EmptyQuicConnectionId()),
--      source_connection_id(EmptyQuicConnectionId()) {}
-+      source_connection_id(EmptyQuicConnectionId()) {
-+      }
- 
- ReceivedPacketInfo::~ReceivedPacketInfo() {}
- 
 diff --git a/quiche/quic/core/quic_packets.h b/quiche/quic/core/quic_packets.h
 index 5246f43e..effe1d9b 100644
 --- a/quiche/quic/core/quic_packets.h
