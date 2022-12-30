@@ -306,6 +306,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     version_ = version;
   }
 
+  //bool get_current_spin_bit() const {return current_spin_bit;}
+
   QuicErrorCode error() const { return error_; }
 
   // Allows enabling or disabling of timestamp processing and serialization.
@@ -1221,6 +1223,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // The type of the IETF frame preceding the frame currently being processed. 0
   // when not processing a frame or only 1 frame has been processed.
   uint64_t previously_received_frame_type_;
+
+  //current spin bit value
+  //bool current_spin_bit; 
 };
 
 // Look for and parse the error code from the "<quic_error_code>:" text that

@@ -1352,6 +1352,21 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
 
   --stats_.packets_dropped;
   QUIC_DVLOG(1) << ENDPOINT << "Received packet header: " << header;
+
+  //update current_spin_bit
+  if(header.form == IETF_QUIC_SHORT_HEADER_PACKET){
+    if(!GetLargestReceivedPacket().IsInitialized() || header.packet_number > GetLargestReceivedPacket()){
+      if(perspective_ == Perspective::IS_CLIENT) {
+        packet_creator_.SetCurrentSpinBit(!header.spin_bit);
+        QUIC_DVLOG(1) << ENDPOINT << "Inverting spin_bit from: " << header.spin_bit << " to: " << packet_creator_.GetCurrentSpinBit();
+      }
+      else{
+        packet_creator_.SetCurrentSpinBit(header.spin_bit);
+        QUIC_DVLOG(1) << ENDPOINT << "Leaving spin_bit as it is: " << header.spin_bit;
+      } 
+    }
+  }
+
   last_received_packet_info_.header = header;
   if (!stats_.first_decrypted_packet.IsInitialized()) {
     stats_.first_decrypted_packet =

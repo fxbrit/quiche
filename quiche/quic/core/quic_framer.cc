@@ -428,7 +428,8 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       peer_ack_delay_exponent_(kDefaultAckDelayExponent),
       local_ack_delay_exponent_(kDefaultAckDelayExponent),
       current_received_frame_type_(0),
-      previously_received_frame_type_(0) {
+      previously_received_frame_type_(0)
+      /*current_spin_bit(false)*/ {
   QUICHE_DCHECK(!supported_versions.empty());
   version_ = supported_versions_[0];
   QUICHE_DCHECK(version_.IsKnown())
@@ -2240,8 +2241,9 @@ bool QuicFramer::AppendIetfHeaderTypeByte(const QuicPacketHeader& header,
         PacketNumberLengthToOnWireValue(header.packet_number_length));
   } else {
     type = static_cast<uint8_t>(
-        FLAGS_FIXED_BIT | (current_key_phase_bit_ ? FLAGS_KEY_PHASE_BIT : 0) |
+        FLAGS_FIXED_BIT | (header.spin_bit ? SPIN_BIT : 0) | (current_key_phase_bit_ ? FLAGS_KEY_PHASE_BIT : 0) |
         PacketNumberLengthToOnWireValue(header.packet_number_length));
+        QUIC_DVLOG(1) << ENDPOINT << "Appending IETF type byte with header.spin_bit = " << header.spin_bit;
   }
   return writer->WriteUInt8(type);
 }
@@ -2804,6 +2806,23 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
     header->destination_connection_id_included = CONNECTION_ID_PRESENT;
     header->source_connection_id_included =
         header->version_flag ? CONNECTION_ID_PRESENT : CONNECTION_ID_ABSENT;
+
+    if(header->form == IETF_QUIC_SHORT_HEADER_PACKET){
+      QUIC_DVLOG(1) <<  ENDPOINT << "Processing short packet header";
+
+      header->spin_bit = header->type_byte & SPIN_BIT;
+      //QUIC_DVLOG(1) <<  ENDPOINT << "current_spin_bit = " << current_spin_bit;
+      QUIC_DVLOG(1) <<  ENDPOINT << "Header spin bit received = " << header->spin_bit;
+
+      // if(perspective_ == Perspective::IS_CLIENT){
+      //   current_spin_bit = !header->spin_bit;
+      //   QUIC_DVLOG(1) << ENDPOINT << "Update current_spin_bit = " << current_spin_bit;
+      // }
+      // else{
+      //   current_spin_bit = header->spin_bit;
+      //   QUIC_DVLOG(1) << ENDPOINT << "current_spin_bit = " << current_spin_bit;
+      // }
+    }
 
     if (!ValidateReceivedConnectionIds(*header)) {
       return false;

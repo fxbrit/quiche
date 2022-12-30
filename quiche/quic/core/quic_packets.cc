@@ -177,7 +177,8 @@ QuicPacketHeader::QuicPacketHeader()
       retry_token_length_length(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0),
       retry_token(absl::string_view()),
       length_length(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0),
-      remaining_packet_length(0) {}
+      remaining_packet_length(0),
+      spin_bit(false) {}
 
 QuicPacketHeader::QuicPacketHeader(const QuicPacketHeader& other) = default;
 
@@ -250,6 +251,9 @@ std::ostream& operator<<(std::ostream& os, const QuicPacketHeader& header) {
     if (header.remaining_packet_length != 0) {
       os << ", remaining_packet_length: " << header.remaining_packet_length;
     }
+  }
+  else{
+    os << ", spin bit: " << header.spin_bit;
   }
   if (header.nonce != nullptr) {
     os << ", diversification_nonce: "

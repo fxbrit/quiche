@@ -316,6 +316,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   bool has_ack() const { return packet_.has_ack; }
 
+  void SetCurrentSpinBit(bool spin_bit) {current_spin_bit = spin_bit;}
+
+  bool GetCurrentSpinBit() const {return current_spin_bit;}
+
   bool has_stop_waiting() const { return packet_.has_stop_waiting; }
 
   // Sets the encrypter to use for the encryption level and updates the max
@@ -686,6 +690,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // accept. There is no limit for QUIC_CRYPTO connections, but QUIC+TLS
   // negotiates this during the handshake.
   QuicByteCount max_datagram_frame_size_;
+
+  bool current_spin_bit = false;
+
 };
 
 }  // namespace quic

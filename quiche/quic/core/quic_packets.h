@@ -157,6 +157,7 @@ struct QUIC_EXPORT_PRIVATE QuicPacketHeader {
   // 0-RTT and Handshake packets. Also includes the length of the
   // diversification nonce in server to client 0-RTT packets.
   QuicByteCount remaining_packet_length;
+  bool spin_bit;
 };
 
 struct QUIC_EXPORT_PRIVATE QuicPublicResetPacket {

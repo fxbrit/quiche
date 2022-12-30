@@ -1690,6 +1690,7 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
   header->length_length = GetLengthLength();
   header->remaining_packet_length = 0;
   if (!HasIetfLongHeader()) {
+    header->spin_bit = current_spin_bit;
     return;
   }
   header->long_packet_type =
