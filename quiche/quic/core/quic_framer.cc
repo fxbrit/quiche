@@ -439,8 +439,7 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       peer_ack_delay_exponent_(kDefaultAckDelayExponent),
       local_ack_delay_exponent_(kDefaultAckDelayExponent),
       current_received_frame_type_(0),
-      previously_received_frame_type_(0)
-      /*current_spin_bit(false)*/ {
+      previously_received_frame_type_(0) {
   QUICHE_DCHECK(!supported_versions.empty());
   version_ = supported_versions_[0];
   QUICHE_DCHECK(version_.IsKnown())
@@ -2817,17 +2816,8 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
       QUIC_DVLOG(1) <<  ENDPOINT << "Processing short packet header";
 
       header->spin_bit = header->type_byte & SPIN_BIT;
-      //QUIC_DVLOG(1) <<  ENDPOINT << "current_spin_bit = " << current_spin_bit;
+      // QUIC_DVLOG(1) <<  ENDPOINT << "current_spin_bit = " << current_spin_bit;
       QUIC_DVLOG(1) <<  ENDPOINT << "Header spin bit received = " << header->spin_bit;
-
-      // if(perspective_ == Perspective::IS_CLIENT){
-      //   current_spin_bit = !header->spin_bit;
-      //   QUIC_DVLOG(1) << ENDPOINT << "Update current_spin_bit = " << current_spin_bit;
-      // }
-      // else{
-      //   current_spin_bit = header->spin_bit;
-      //   QUIC_DVLOG(1) << ENDPOINT << "current_spin_bit = " << current_spin_bit;
-      // }
     }
 
     if (!ValidateReceivedConnectionIds(*header)) {
