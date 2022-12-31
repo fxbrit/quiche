@@ -320,6 +320,12 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   bool GetCurrentSpinBit() const {return current_spin_bit;}
 
+  // Setter method for current_rtt.
+  void SetCurrentRtt(int64_t rtt) {current_rtt = rtt;}
+  
+  // Getter method for current_rtt.
+  int64_t GetCurrentRtt() const {return current_rtt;}
+
   bool has_stop_waiting() const { return packet_.has_stop_waiting; }
 
   // Sets the encrypter to use for the encryption level and updates the max
@@ -692,6 +698,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   QuicByteCount max_datagram_frame_size_;
 
   bool current_spin_bit = false;
+
+  // RTT used for Internal Spin Bit marking. Expressed in milliseconds.
+  int64_t current_rtt = 0;
 
 };
 
