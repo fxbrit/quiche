@@ -1353,19 +1353,27 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   --stats_.packets_dropped;
   QUIC_DVLOG(1) << ENDPOINT << "Received packet header: " << header;
 
-  //update current_spin_bit
-  if(header.form == IETF_QUIC_SHORT_HEADER_PACKET){
-    if(!GetLargestReceivedPacket().IsInitialized() || header.packet_number > GetLargestReceivedPacket()){
-      if(perspective_ == Perspective::IS_CLIENT) {
+  // Update current_spin_bit and current_rtt for Internal Spin Bit marking.
+  // Only client-side for now.
+  if(header.form == IETF_QUIC_SHORT_HEADER_PACKET &&
+    perspective_ == Perspective::IS_CLIENT &&
+    (!GetLargestReceivedPacket().IsInitialized() || header.packet_number > GetLargestReceivedPacket())){
+      // Check if current_rtt is zero and in case it is update it to latest RTT.
+      // This happens either the first time we set current_rtt or when
+      // current_rtt is fuly decremented and we need to refresh it.
+      int64_t rtt = packet_creator_.GetCurrentRtt();
+      int64_t latest_rtt_ms = sent_packet_manager_.GetRttStats()->latest_rtt().ToMilliseconds();
+      // Notice that latest_rtt could also be zero if no valid updates occurred:
+      // in that case we should NOT flip the Internal Spin Bit and we can avoid
+      // updating current_rtt.
+      if(rtt <= 0 && latest_rtt_ms != 0) {
+        packet_creator_.SetCurrentRtt(rtt);
+        // After setting a new RTT for marking flip the Internal Spin Bit.
         packet_creator_.SetCurrentSpinBit(!header.spin_bit);
-        QUIC_DVLOG(1) << ENDPOINT << "Inverting spin_bit from: " << header.spin_bit << " to: " << packet_creator_.GetCurrentSpinBit();
+        QUIC_DVLOG(1) << ENDPOINT
+        << "Inverting spin_bit from: " << header.spin_bit << " to: " << packet_creator_.GetCurrentSpinBit();
       }
-      else{
-        packet_creator_.SetCurrentSpinBit(header.spin_bit);
-        QUIC_DVLOG(1) << ENDPOINT << "Leaving spin_bit as it is: " << header.spin_bit;
-      } 
     }
-  }
 
   last_received_packet_info_.header = header;
   if (!stats_.first_decrypted_packet.IsInitialized()) {
