@@ -1322,14 +1322,14 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
     (!GetLargestReceivedPacket().IsInitialized() || header.packet_number > GetLargestReceivedPacket())){
       // Check if current_rtt is zero and in case it is update it to latest RTT.
       // This happens either the first time we set current_rtt or when
-      // current_rtt is fuly decremented and we need to refresh it.
+      // current_rtt is fully decremented and we need to refresh it.
       int64_t rtt = packet_creator_.GetCurrentRtt();
       int64_t latest_rtt_ms = sent_packet_manager_.GetRttStats()->latest_rtt().ToMilliseconds();
       // Notice that latest_rtt could also be zero if no valid updates occurred:
       // in that case we should NOT flip the Internal Spin Bit and we can avoid
       // updating current_rtt.
       if(rtt <= 0 && latest_rtt_ms != 0) {
-        packet_creator_.SetCurrentRtt(rtt);
+        packet_creator_.SetCurrentRtt(latest_rtt_ms);
         // After setting a new RTT for marking flip the Internal Spin Bit.
         packet_creator_.SetCurrentSpinBit(!header.spin_bit);
         QUIC_DVLOG(1) << ENDPOINT
