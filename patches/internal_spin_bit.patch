@@ -1,44 +1,42 @@
 diff --git a/quiche/quic/core/quic_connection.cc b/quiche/quic/core/quic_connection.cc
-index a929e3ab..cfe224b5 100644
+index e3408975..cafe6172 100644
 --- a/quiche/quic/core/quic_connection.cc
 +++ b/quiche/quic/core/quic_connection.cc
-@@ -1352,6 +1352,21 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
+@@ -1314,6 +1314,29 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
  
    --stats_.packets_dropped;
    QUIC_DVLOG(1) << ENDPOINT << "Received packet header: " << header;
 +
-+  //update current_spin_bit
-+  if(header.form == IETF_QUIC_SHORT_HEADER_PACKET){
-+    if(!GetLargestReceivedPacket().IsInitialized() || header.packet_number > GetLargestReceivedPacket()){
-+      if(perspective_ == Perspective::IS_CLIENT) {
++  // Update current_spin_bit and current_rtt for Internal Spin Bit marking.
++  // Only client-side for now.
++  if(header.form == IETF_QUIC_SHORT_HEADER_PACKET &&
++    perspective_ == Perspective::IS_CLIENT &&
++    (!GetLargestReceivedPacket().IsInitialized() || header.packet_number > GetLargestReceivedPacket())){
++      // Check if current_rtt is zero and in case it is update it to latest RTT.
++      // This happens either the first time we set current_rtt or when
++      // current_rtt is fully decremented and we need to refresh it.
++      int64_t rtt = packet_creator_.GetCurrentRtt();
++      int64_t latest_rtt_ms = sent_packet_manager_.GetRttStats()->latest_rtt().ToMilliseconds();
++      // Notice that latest_rtt could also be zero if no valid updates occurred:
++      // in that case we should NOT flip the Internal Spin Bit and we can avoid
++      // updating current_rtt.
++      if(rtt <= 0 && latest_rtt_ms != 0) {
++        packet_creator_.SetCurrentRtt(latest_rtt_ms);
++        // After setting a new RTT for marking flip the Internal Spin Bit.
 +        packet_creator_.SetCurrentSpinBit(!header.spin_bit);
-+        QUIC_DVLOG(1) << ENDPOINT << "Inverting spin_bit from: " << header.spin_bit << " to: " << packet_creator_.GetCurrentSpinBit();
++        QUIC_DVLOG(1) << ENDPOINT
++        << "Inverting spin_bit from: " << header.spin_bit << " to: " << packet_creator_.GetCurrentSpinBit();
 +      }
-+      else{
-+        packet_creator_.SetCurrentSpinBit(header.spin_bit);
-+        QUIC_DVLOG(1) << ENDPOINT << "Leaving spin_bit as it is: " << header.spin_bit;
-+      } 
 +    }
-+  }
 +
    last_received_packet_info_.header = header;
    if (!stats_.first_decrypted_packet.IsInitialized()) {
      stats_.first_decrypted_packet =
 diff --git a/quiche/quic/core/quic_framer.cc b/quiche/quic/core/quic_framer.cc
-index b362c51e..2c92368d 100644
+index b362c51e..6f5a54a8 100644
 --- a/quiche/quic/core/quic_framer.cc
 +++ b/quiche/quic/core/quic_framer.cc
-@@ -428,7 +428,8 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
-       peer_ack_delay_exponent_(kDefaultAckDelayExponent),
-       local_ack_delay_exponent_(kDefaultAckDelayExponent),
-       current_received_frame_type_(0),
--      previously_received_frame_type_(0) {
-+      previously_received_frame_type_(0)
-+      /*current_spin_bit(false)*/ {
-   QUICHE_DCHECK(!supported_versions.empty());
-   version_ = supported_versions_[0];
-   QUICHE_DCHECK(version_.IsKnown())
-@@ -2240,8 +2241,9 @@ bool QuicFramer::AppendIetfHeaderTypeByte(const QuicPacketHeader& header,
+@@ -2240,8 +2240,9 @@ bool QuicFramer::AppendIetfHeaderTypeByte(const QuicPacketHeader& header,
          PacketNumberLengthToOnWireValue(header.packet_number_length));
    } else {
      type = static_cast<uint8_t>(
@@ -49,7 +47,7 @@ index b362c51e..2c92368d 100644
    }
    return writer->WriteUInt8(type);
  }
-@@ -2805,6 +2807,23 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
+@@ -2805,6 +2806,14 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
      header->source_connection_id_included =
          header->version_flag ? CONNECTION_ID_PRESENT : CONNECTION_ID_ABSENT;
  
@@ -57,87 +55,75 @@ index b362c51e..2c92368d 100644
 +      QUIC_DVLOG(1) <<  ENDPOINT << "Processing short packet header";
 +
 +      header->spin_bit = header->type_byte & SPIN_BIT;
-+      //QUIC_DVLOG(1) <<  ENDPOINT << "current_spin_bit = " << current_spin_bit;
++      // QUIC_DVLOG(1) <<  ENDPOINT << "current_spin_bit = " << current_spin_bit;
 +      QUIC_DVLOG(1) <<  ENDPOINT << "Header spin bit received = " << header->spin_bit;
-+
-+      // if(perspective_ == Perspective::IS_CLIENT){
-+      //   current_spin_bit = !header->spin_bit;
-+      //   QUIC_DVLOG(1) << ENDPOINT << "Update current_spin_bit = " << current_spin_bit;
-+      // }
-+      // else{
-+      //   current_spin_bit = header->spin_bit;
-+      //   QUIC_DVLOG(1) << ENDPOINT << "current_spin_bit = " << current_spin_bit;
-+      // }
 +    }
 +
      if (!ValidateReceivedConnectionIds(*header)) {
        return false;
      }
-diff --git a/quiche/quic/core/quic_framer.h b/quiche/quic/core/quic_framer.h
-index 3f1d0117..370968a6 100644
---- a/quiche/quic/core/quic_framer.h
-+++ b/quiche/quic/core/quic_framer.h
-@@ -306,6 +306,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
-     version_ = version;
-   }
- 
-+  //bool get_current_spin_bit() const {return current_spin_bit;}
-+
-   QuicErrorCode error() const { return error_; }
- 
-   // Allows enabling or disabling of timestamp processing and serialization.
-@@ -1221,6 +1223,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
-   // The type of the IETF frame preceding the frame currently being processed. 0
-   // when not processing a frame or only 1 frame has been processed.
-   uint64_t previously_received_frame_type_;
-+
-+  //current spin bit value
-+  //bool current_spin_bit; 
- };
- 
- // Look for and parse the error code from the "<quic_error_code>:" text that
 diff --git a/quiche/quic/core/quic_packet_creator.cc b/quiche/quic/core/quic_packet_creator.cc
-index cfcd3e25..9a254494 100644
+index 566944c0..3a1911a0 100644
 --- a/quiche/quic/core/quic_packet_creator.cc
 +++ b/quiche/quic/core/quic_packet_creator.cc
-@@ -1690,6 +1690,7 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
+@@ -1691,6 +1691,14 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
    header->length_length = GetLengthLength();
    header->remaining_packet_length = 0;
    if (!HasIetfLongHeader()) {
 +    header->spin_bit = current_spin_bit;
++    // After setting the Internal Spin Bit decrement the current_rtt
++    // by 1 millisecond.
++    if (current_rtt > 0) {
++      // TODO: this does NOT take into account concurrent threads, is
++      // this a valid approach or does it require a lock?
++      current_rtt--;
++    }
      return;
    }
    header->long_packet_type =
 diff --git a/quiche/quic/core/quic_packet_creator.h b/quiche/quic/core/quic_packet_creator.h
-index 785efb14..2343d8f5 100644
+index 785efb14..c268ddad 100644
 --- a/quiche/quic/core/quic_packet_creator.h
 +++ b/quiche/quic/core/quic_packet_creator.h
-@@ -316,6 +316,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
+@@ -316,6 +316,18 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
  
    bool has_ack() const { return packet_.has_ack; }
  
++  // Setter method for current_spin_bit.
 +  void SetCurrentSpinBit(bool spin_bit) {current_spin_bit = spin_bit;}
 +
++  // Getter method for current_spin_bit.
 +  bool GetCurrentSpinBit() const {return current_spin_bit;}
++
++  // Setter method for current_rtt.
++  void SetCurrentRtt(int64_t rtt) {current_rtt = rtt;}
++
++  // Getter method for current_rtt.
++  int64_t GetCurrentRtt() const {return current_rtt;}
 +
    bool has_stop_waiting() const { return packet_.has_stop_waiting; }
  
    // Sets the encrypter to use for the encryption level and updates the max
-@@ -686,6 +686,9 @@
+@@ -686,6 +698,14 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
    // accept. There is no limit for QUIC_CRYPTO connections, but QUIC+TLS
    // negotiates this during the handshake.
    QuicByteCount max_datagram_frame_size_;
 +
++  // Spin Bit value manintained internally by the endpoint.
++  
 +  bool current_spin_bit = false;
++
++  // RTT used for Internal Spin Bit marking. Expressed in milliseconds.
++  int64_t current_rtt = 0;
 +
  };
  
  }  // namespace quic
 diff --git a/quiche/quic/core/quic_packets.cc b/quiche/quic/core/quic_packets.cc
-index 57d6ba7f..1baf6389 100644
+index b0f7535d..6beff2a8 100644
 --- a/quiche/quic/core/quic_packets.cc
 +++ b/quiche/quic/core/quic_packets.cc
-@@ -177,7 +177,8 @@
+@@ -177,7 +177,8 @@ QuicPacketHeader::QuicPacketHeader()
        retry_token_length_length(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0),
        retry_token(absl::string_view()),
        length_length(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0),
@@ -147,7 +133,7 @@ index 57d6ba7f..1baf6389 100644
  
  QuicPacketHeader::QuicPacketHeader(const QuicPacketHeader& other) = default;
  
-@@ -251,6 +251,9 @@ std::ostream& operator<<(std::ostream& os, const QuicPacketHeader& header) {
+@@ -251,6 +252,9 @@ std::ostream& operator<<(std::ostream& os, const QuicPacketHeader& header) {
        os << ", remaining_packet_length: " << header.remaining_packet_length;
      }
    }
@@ -158,13 +144,14 @@ index 57d6ba7f..1baf6389 100644
      os << ", diversification_nonce: "
         << absl::BytesToHexString(
 diff --git a/quiche/quic/core/quic_packets.h b/quiche/quic/core/quic_packets.h
-index 5246f43e..effe1d9b 100644
+index 263bdb9a..24c37784 100644
 --- a/quiche/quic/core/quic_packets.h
 +++ b/quiche/quic/core/quic_packets.h
-@@ -157,6 +157,7 @@ struct QUIC_EXPORT_PRIVATE QuicPacketHeader {
+@@ -157,6 +157,8 @@ struct QUIC_EXPORT_PRIVATE QuicPacketHeader {
    // 0-RTT and Handshake packets. Also includes the length of the
    // diversification nonce in server to client 0-RTT packets.
    QuicByteCount remaining_packet_length;
++  // Optional Spin Bit, used in QUIC to measure latency.
 +  bool spin_bit;
  };
  

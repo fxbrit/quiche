@@ -1,1 +1,1 @@
-Contains the original patch by [maxdinatale](https://github.com/maxdinatale) to implement the Spin Bit. Further versions are rebased to work with the current changes or they add extra features.
+Contains the patches to implement the Internal Spin Bit on the main branch of Quiche and in Chromium.
