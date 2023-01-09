@@ -316,13 +316,15 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   bool has_ack() const { return packet_.has_ack; }
 
+  // Setter method for current_spin_bit.
   void SetCurrentSpinBit(bool spin_bit) {current_spin_bit = spin_bit;}
 
+  // Getter method for current_spin_bit.
   bool GetCurrentSpinBit() const {return current_spin_bit;}
 
   // Setter method for current_rtt.
   void SetCurrentRtt(int64_t rtt) {current_rtt = rtt;}
-  
+
   // Getter method for current_rtt.
   int64_t GetCurrentRtt() const {return current_rtt;}
 
@@ -697,6 +699,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // negotiates this during the handshake.
   QuicByteCount max_datagram_frame_size_;
 
+  // Spin Bit value manintained internally by the endpoint.
+  
   bool current_spin_bit = false;
 
   // RTT used for Internal Spin Bit marking. Expressed in milliseconds.

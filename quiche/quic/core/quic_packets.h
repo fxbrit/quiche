@@ -157,6 +157,7 @@ struct QUIC_EXPORT_PRIVATE QuicPacketHeader {
   // 0-RTT and Handshake packets. Also includes the length of the
   // diversification nonce in server to client 0-RTT packets.
   QuicByteCount remaining_packet_length;
+  // Optional Spin Bit, used in QUIC to measure latency.
   bool spin_bit;
 };
 
