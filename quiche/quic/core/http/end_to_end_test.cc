@@ -3871,7 +3871,7 @@ class TestResponseListener : public QuicSpdyClientBase::ResponseListener {
  public:
   void OnCompleteResponse(QuicStreamId id,
                           const Http2HeaderBlock& response_headers,
-                          const std::string& response_body) override {
+                          absl::string_view response_body) override {
     QUIC_DVLOG(1) << "response for stream " << id << " "
                   << response_headers.DebugString() << "\n"
                   << response_body;
@@ -6759,7 +6759,7 @@ TEST_P(EndToEndTest, WebTransportDatagrams) {
 
   quiche::SimpleBufferAllocator allocator;
   for (int i = 0; i < 10; i++) {
-    session->SendOrQueueDatagram(MemSliceFromString("test"));
+    session->SendOrQueueDatagram("test");
   }
 
   int received = 0;

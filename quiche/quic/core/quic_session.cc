@@ -73,7 +73,6 @@ QuicSession::QuicSession(
     : connection_(connection),
       perspective_(connection->perspective()),
       visitor_(owner),
-      write_blocked_streams_(connection->transport_version()),
       config_(config),
       stream_id_manager_(perspective(), connection->transport_version(),
                          kDefaultMaxStreamsPerConnection,
@@ -646,9 +645,7 @@ void QuicSession::OnCanWrite() {
   if (control_frame_manager_.WillingToWrite()) {
     control_frame_manager_.OnCanWrite();
   }
-  if (GetQuicReloadableFlag(
-          quic_donot_pto_stream_data_before_handshake_confirmed) &&
-      version().UsesTls() && GetHandshakeState() != HANDSHAKE_CONFIRMED &&
+  if (version().UsesTls() && GetHandshakeState() != HANDSHAKE_CONFIRMED &&
       connection_->in_probe_time_out()) {
     QUIC_CODE_COUNT(quic_donot_pto_stream_data_before_handshake_confirmed);
     // Do not PTO stream data before handshake gets confirmed.
