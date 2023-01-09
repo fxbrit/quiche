@@ -161,6 +161,7 @@ struct QUIC_EXPORT_PRIVATE QuicPacketHeader {
   bool operator==(const QuicPacketHeader& other) const;
   bool operator!=(const QuicPacketHeader& other) const;
   
+  // Optional Spin Bit, used in QUIC to measure latency.
   bool spin_bit;
 };
 
