@@ -75,7 +75,6 @@ quiche_core_hdrs = [
     "http2/adapter/window_manager.h",
     "http2/core/http2_trace_logging.h",
     "http2/core/priority_write_scheduler.h",
-    "http2/core/write_scheduler.h",
     "http2/decoder/decode_buffer.h",
     "http2/decoder/decode_http2_structures.h",
     "http2/decoder/decode_status.h",
@@ -399,6 +398,7 @@ quiche_core_hdrs = [
     "spdy/core/spdy_protocol.h",
     "spdy/core/spdy_simple_arena.h",
     "spdy/core/zero_copy_output_buffer.h",
+    "web_transport/web_transport.h",
 ]
 quiche_core_srcs = [
     "balsa/balsa_enums.cc",
@@ -851,6 +851,7 @@ quiche_test_support_hdrs = [
     "quic/test_tools/web_transport_test_tools.h",
     "spdy/test_tools/mock_spdy_framer_visitor.h",
     "spdy/test_tools/spdy_test_utils.h",
+    "web_transport/test_tools/mock_web_transport.h",
 ]
 quiche_test_support_srcs = [
     "common/platform/api/quiche_test_loopback.cc",

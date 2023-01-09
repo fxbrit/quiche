@@ -1,4 +1,4 @@
-// Copyright (c) 2022 The Chromium Authors. All rights reserved.
+// Copyright (c) 2023 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,8 +19,6 @@ QUIC_FLAG(quic_restart_flag_quic_testonly_default_true, true)
 QUIC_FLAG(quic_reloadable_flag_quic_no_write_control_frame_upon_connection_close, true)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
-// If true, QuicCryptoServerConfig::ParseConfigProtobuf will treat an empty SCID as the same as non-existent.
-QUIC_FLAG(quic_restart_flag_quic_return_error_on_empty_scid, true)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(quic_restart_flag_quic_support_release_time_for_gso, false)
 // If true, ack frequency frame can be sent from server to client.
@@ -29,8 +27,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_can_send_ack_frequency, true)
 QUIC_FLAG(quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, true)
 // If true, an endpoint does not detect path degrading or blackholing until handshake gets confirmed.
 QUIC_FLAG(quic_reloadable_flag_quic_no_path_degrading_before_handshake_confirmed, true)
-// If true, combine two WriteOrBufferData to one while writing headers.
-QUIC_FLAG(quic_reloadable_flag_quic_one_write_for_headers, true)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, delay setting of stateless reset token until session initialization.
@@ -51,8 +47,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_disable_server_blackhole_detection, false)
 QUIC_FLAG(quic_reloadable_flag_quic_enable_disable_resumption, true)
 // If true, discard INITIAL packet if the key has been dropped.
 QUIC_FLAG(quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, true)
-// If true, do not PTO new stream data before handshake confirmed.
-QUIC_FLAG(quic_reloadable_flag_quic_donot_pto_stream_data_before_handshake_confirmed, true)
 // If true, do not issue a new connection ID that has been claimed by another connection.
 QUIC_FLAG(quic_reloadable_flag_quic_check_cid_collision_when_issue_new_cid, true)
 // If true, enable server retransmittable on wire PING.

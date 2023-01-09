@@ -74,7 +74,6 @@
     "quiche/http2/adapter/window_manager.h",
     "quiche/http2/core/http2_trace_logging.h",
     "quiche/http2/core/priority_write_scheduler.h",
-    "quiche/http2/core/write_scheduler.h",
     "quiche/http2/decoder/decode_buffer.h",
     "quiche/http2/decoder/decode_http2_structures.h",
     "quiche/http2/decoder/decode_status.h",
@@ -397,7 +396,8 @@
     "quiche/spdy/core/spdy_prefixed_buffer_reader.h",
     "quiche/spdy/core/spdy_protocol.h",
     "quiche/spdy/core/spdy_simple_arena.h",
-    "quiche/spdy/core/zero_copy_output_buffer.h"
+    "quiche/spdy/core/zero_copy_output_buffer.h",
+    "quiche/web_transport/web_transport.h"
   ],
   "quiche_core_srcs": [
     "quiche/balsa/balsa_enums.cc",
@@ -849,7 +849,8 @@
     "quiche/quic/test_tools/web_transport_resets_backend.h",
     "quiche/quic/test_tools/web_transport_test_tools.h",
     "quiche/spdy/test_tools/mock_spdy_framer_visitor.h",
-    "quiche/spdy/test_tools/spdy_test_utils.h"
+    "quiche/spdy/test_tools/spdy_test_utils.h",
+    "quiche/web_transport/test_tools/mock_web_transport.h"
   ],
   "quiche_test_support_srcs": [
     "quiche/common/platform/api/quiche_test_loopback.cc",
