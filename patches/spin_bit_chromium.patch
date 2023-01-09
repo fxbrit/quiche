@@ -2,7 +2,7 @@ diff --git a/quiche/quic/core/quic_connection.cc b/quiche/quic/core/quic_connect
 index 2f5f56f9..5bee720e 100644
 --- a/quiche/quic/core/quic_connection.cc
 +++ b/quiche/quic/core/quic_connection.cc
-@@ -1347,6 +1347,21 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
+@@ -1352,6 +1352,21 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
  
    --stats_.packets_dropped;
    QUIC_DVLOG(1) << ENDPOINT << "Received packet header: " << header;
