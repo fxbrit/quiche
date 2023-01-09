@@ -2,7 +2,7 @@ diff --git a/quiche/quic/core/quic_connection.cc b/quiche/quic/core/quic_connect
 index a929e3ab..cfe224b5 100644
 --- a/quiche/quic/core/quic_connection.cc
 +++ b/quiche/quic/core/quic_connection.cc
-@@ -1352,6 +1352,21 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
+@@ -1314,6 +1314,21 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
  
    --stats_.packets_dropped;
    QUIC_DVLOG(1) << ENDPOINT << "Received packet header: " << header;
@@ -100,7 +100,7 @@ diff --git a/quiche/quic/core/quic_packet_creator.cc b/quiche/quic/core/quic_pac
 index cfcd3e25..9a254494 100644
 --- a/quiche/quic/core/quic_packet_creator.cc
 +++ b/quiche/quic/core/quic_packet_creator.cc
-@@ -1690,6 +1690,7 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
+@@ -1691,6 +1691,7 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
    header->length_length = GetLengthLength();
    header->remaining_packet_length = 0;
    if (!HasIetfLongHeader()) {
