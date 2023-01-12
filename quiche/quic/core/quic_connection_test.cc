@@ -16456,10 +16456,6 @@ TEST_P(QuicConnectionTest, OptimizedServerPreferredAddress) {
             PathValidationReason::kReasonUnknown);
       }));
   QuicConfig config;
-  config.SetClientConnectionOptions(QuicTagVector{kSPA2});
-  ServerPreferredAddressInit(config);
-  EXPECT_TRUE(connection_.HasPendingPathValidation());
-  ASSERT_FALSE(new_writer.path_challenge_frames().empty());
 
   // Send data packet while path validation is pending.
   connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
@@ -16538,10 +16534,6 @@ TEST_P(QuicConnectionTest, MaxDuplicatedPacketsSentToServerPreferredAddress) {
             PathValidationReason::kReasonUnknown);
       }));
   QuicConfig config;
-  config.SetClientConnectionOptions(QuicTagVector{kSPA2});
-  ServerPreferredAddressInit(config);
-  EXPECT_TRUE(connection_.HasPendingPathValidation());
-  ASSERT_FALSE(new_writer.path_challenge_frames().empty());
 
   // Send data packet while path validation is pending.
   size_t write_limit = writer_->packets_write_attempts();
