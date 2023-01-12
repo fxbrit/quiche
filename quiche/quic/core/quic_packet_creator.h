@@ -322,11 +322,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Getter method for current_spin_bit.
   bool GetCurrentSpinBit() const {return current_spin_bit;}
 
-  // Setter method for current_rtt.
-  void SetCurrentRtt(int64_t rtt) {current_rtt = rtt;}
+  // Setter method for spin_bit_interval.
+  void SetSpinBitInterval(QuicTime interval) {spin_bit_interval = interval;}
 
-  // Getter method for current_rtt.
-  int64_t GetCurrentRtt() const {return current_rtt;}
+  // Getter method for spin_bit_interval.
+  QuicTime GetSpinBitInterval() const {return spin_bit_interval;}
 
   bool has_stop_waiting() const { return packet_.has_stop_waiting; }
 
@@ -700,11 +700,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   QuicByteCount max_datagram_frame_size_;
 
   // Spin Bit value manintained internally by the endpoint.
-  
   bool current_spin_bit = false;
 
-  // RTT used for Internal Spin Bit marking. Expressed in milliseconds.
-  int64_t current_rtt = 0;
+  // Interval used for Internal Spin Bit marking. It is the sum of the
+  // current time and the latest RTT.
+  QuicTime spin_bit_interval = QuicTime::Zero();
 
 };
 

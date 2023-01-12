@@ -1315,25 +1315,31 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   --stats_.packets_dropped;
   QUIC_DVLOG(1) << ENDPOINT << "Received packet header: " << header;
 
-  // Update current_spin_bit and current_rtt for Internal Spin Bit marking.
-  // Only client-side for now.
+  // Update current_spin_bit and spin_bit_interval for Internal Spin Bit
+  // marking. Only client-side for now.
   if(header.form == IETF_QUIC_SHORT_HEADER_PACKET &&
     perspective_ == Perspective::IS_CLIENT &&
     (!GetLargestReceivedPacket().IsInitialized() || header.packet_number > GetLargestReceivedPacket())){
-      // Check if current_rtt is zero and in case it is update it to latest RTT.
-      // This happens either the first time we set current_rtt or when
-      // current_rtt is fully decremented and we need to refresh it.
-      int64_t rtt = packet_creator_.GetCurrentRtt();
-      int64_t latest_rtt_ms = sent_packet_manager_.GetRttStats()->latest_rtt().ToMilliseconds();
-      // Notice that latest_rtt could also be zero if no valid updates occurred:
-      // in that case we should NOT flip the Internal Spin Bit and we can avoid
-      // updating current_rtt.
-      if(rtt <= 0 && latest_rtt_ms != 0) {
-        packet_creator_.SetCurrentRtt(latest_rtt_ms);
-        // After setting a new RTT for marking flip the Internal Spin Bit.
-        packet_creator_.SetCurrentSpinBit(!header.spin_bit);
-        QUIC_DVLOG(1) << ENDPOINT
-        << "Inverting spin_bit from: " << header.spin_bit << " to: " << packet_creator_.GetCurrentSpinBit();
+      QuicTime now = clock_->Now();
+      QuicTime interval = packet_creator_.GetSpinBitInterval();
+      // Check if we are past the current marking interval: in that case
+      // reset it and flip the Spin Bit. This will always happen on first
+      // iteration since interval will be 0.
+      if(now >= interval) {
+        QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
+        // Note that latest_rtt could be 0 if no valid update occurred.
+        if (!latest_rtt.isZero()) {
+          packet_creator_.SetSpinBitInterval(now + latest_rtt);
+          QUIC_DVLOG(1) << ENDPOINT
+          << "Updating current_rtt from: " << interval.ToDebuggingValue()
+          << " to: " << packet_creator_.GetSpinBitInterval().ToDebuggingValue();
+          // After setting the new RTT interval for marking, flip the
+          // Internal Spin Bit.
+          packet_creator_.SetCurrentSpinBit(!header.spin_bit);
+          QUIC_DVLOG(1) << ENDPOINT
+          << "Inverting spin_bit from: " << header.spin_bit
+          << " to: " << packet_creator_.GetCurrentSpinBit();
+        }
       }
     }
 

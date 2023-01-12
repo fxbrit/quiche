@@ -1692,13 +1692,6 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
   header->remaining_packet_length = 0;
   if (!HasIetfLongHeader()) {
     header->spin_bit = current_spin_bit;
-    // After setting the Internal Spin Bit decrement the current_rtt
-    // by 1 millisecond.
-    if (current_rtt > 0) {
-      // TODO: this does NOT take into account concurrent threads, is
-      // this a valid approach or does it require a lock?
-      current_rtt--;
-    }
     return;
   }
   header->long_packet_type =
