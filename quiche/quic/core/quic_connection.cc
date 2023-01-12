@@ -661,7 +661,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
 
   if (connection_migration_use_new_cid_ &&
       config.HasReceivedPreferredAddressConnectionIdAndToken() &&
-      config.HasClientRequestedIndependentOption(kSPAD, perspective_)) {
+      config.HasClientSentConnectionOption(kSPAD, perspective_)) {
     if (self_address().host().IsIPv4() &&
         config.HasReceivedIPv4AlternateServerAddress()) {
       server_preferred_address_ = config.ReceivedIPv4AlternateServerAddress();
@@ -7083,11 +7083,18 @@ QuicConnection::ReversePathValidationResultDelegate::
       peer_address_alternative_path_(
           connection_->alternative_path_.peer_address),
       active_effective_peer_migration_type_(
-          connection_->active_effective_peer_migration_type_) {}
+          connection_->active_effective_peer_migration_type_) {
+  if (connection_->count_reverse_path_validation_stats()) {
+    QUIC_CODE_COUNT_N(quic_reverse_path_validation, 1, 4);
+  }
+}
 
 void QuicConnection::ReversePathValidationResultDelegate::
     OnPathValidationSuccess(std::unique_ptr<QuicPathValidationContext> context,
                             QuicTime start_time) {
+  if (connection_->count_reverse_path_validation_stats()) {
+    QUIC_CODE_COUNT_N(quic_reverse_path_validation, 2, 4);
+  }
   QUIC_DLOG(INFO) << "Successfully validated new path " << *context
                   << ", validation started at " << start_time;
   if (connection_->IsDefaultPath(context->self_address(),
@@ -7131,6 +7138,9 @@ void QuicConnection::ReversePathValidationResultDelegate::
 void QuicConnection::ReversePathValidationResultDelegate::
     OnPathValidationFailure(
         std::unique_ptr<QuicPathValidationContext> context) {
+  if (connection_->count_reverse_path_validation_stats()) {
+    QUIC_CODE_COUNT_N(quic_reverse_path_validation, 3, 4);
+  }
   if (!connection_->connected()) {
     return;
   }
