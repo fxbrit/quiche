@@ -1331,7 +1331,7 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
         if (!latest_rtt.isZero()) {
           packet_creator_.SetSpinBitInterval(now + latest_rtt);
           QUIC_DVLOG(1) << ENDPOINT
-          << "Updating current_rtt from: " << interval.ToDebuggingValue()
+          << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
           << " to: " << packet_creator_.GetSpinBitInterval().ToDebuggingValue();
           // After setting the new RTT interval for marking, flip the
           // Internal Spin Bit.
