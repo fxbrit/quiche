@@ -1,31 +1,37 @@
 diff --git a/quiche/quic/core/quic_connection.cc b/quiche/quic/core/quic_connection.cc
-index e3408975..cafe6172 100644
+index f22d8ed4..dd7d19cc 100644
 --- a/quiche/quic/core/quic_connection.cc
 +++ b/quiche/quic/core/quic_connection.cc
-@@ -1314,6 +1314,29 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
+@@ -1314,6 +1314,35 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
  
    --stats_.packets_dropped;
    QUIC_DVLOG(1) << ENDPOINT << "Received packet header: " << header;
 +
-+  // Update current_spin_bit and current_rtt for Internal Spin Bit marking.
-+  // Only client-side for now.
++  // Update current_spin_bit and spin_bit_interval for Internal Spin Bit
++  // marking. Only client-side for now.
 +  if(header.form == IETF_QUIC_SHORT_HEADER_PACKET &&
 +    perspective_ == Perspective::IS_CLIENT &&
 +    (!GetLargestReceivedPacket().IsInitialized() || header.packet_number > GetLargestReceivedPacket())){
-+      // Check if current_rtt is zero and in case it is update it to latest RTT.
-+      // This happens either the first time we set current_rtt or when
-+      // current_rtt is fully decremented and we need to refresh it.
-+      int64_t rtt = packet_creator_.GetCurrentRtt();
-+      int64_t latest_rtt_ms = sent_packet_manager_.GetRttStats()->latest_rtt().ToMilliseconds();
-+      // Notice that latest_rtt could also be zero if no valid updates occurred:
-+      // in that case we should NOT flip the Internal Spin Bit and we can avoid
-+      // updating current_rtt.
-+      if(rtt <= 0 && latest_rtt_ms != 0) {
-+        packet_creator_.SetCurrentRtt(latest_rtt_ms);
-+        // After setting a new RTT for marking flip the Internal Spin Bit.
-+        packet_creator_.SetCurrentSpinBit(!header.spin_bit);
-+        QUIC_DVLOG(1) << ENDPOINT
-+        << "Inverting spin_bit from: " << header.spin_bit << " to: " << packet_creator_.GetCurrentSpinBit();
++      QuicTime now = clock_->Now();
++      QuicTime interval = packet_creator_.GetSpinBitInterval();
++      // Check if we are past the current marking interval: in that case
++      // reset it and flip the Spin Bit. This will always happen on first
++      // iteration since interval will be 0.
++      if(now >= interval) {
++        QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
++        // Note that latest_rtt could be 0 if no valid update occurred.
++        if (!latest_rtt.isZero()) {
++          packet_creator_.SetSpinBitInterval(now + latest_rtt);
++          QUIC_DVLOG(1) << ENDPOINT
++          << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
++          << " to: " << packet_creator_.GetSpinBitInterval().ToDebuggingValue();
++          // After setting the new RTT interval for marking, flip the
++          // Internal Spin Bit.
++          packet_creator_.SetCurrentSpinBit(!header.spin_bit);
++          QUIC_DVLOG(1) << ENDPOINT
++          << "Inverting spin_bit from: " << header.spin_bit
++          << " to: " << packet_creator_.GetCurrentSpinBit();
++        }
 +      }
 +    }
 +
@@ -63,26 +69,19 @@ index b362c51e..6f5a54a8 100644
        return false;
      }
 diff --git a/quiche/quic/core/quic_packet_creator.cc b/quiche/quic/core/quic_packet_creator.cc
-index 566944c0..3a1911a0 100644
+index 566944c0..16c28b81 100644
 --- a/quiche/quic/core/quic_packet_creator.cc
 +++ b/quiche/quic/core/quic_packet_creator.cc
-@@ -1691,6 +1691,14 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
+@@ -1691,6 +1691,7 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
    header->length_length = GetLengthLength();
    header->remaining_packet_length = 0;
    if (!HasIetfLongHeader()) {
 +    header->spin_bit = current_spin_bit;
-+    // After setting the Internal Spin Bit decrement the current_rtt
-+    // by 1 millisecond.
-+    if (current_rtt > 0) {
-+      // TODO: this does NOT take into account concurrent threads, is
-+      // this a valid approach or does it require a lock?
-+      current_rtt--;
-+    }
      return;
    }
    header->long_packet_type =
 diff --git a/quiche/quic/core/quic_packet_creator.h b/quiche/quic/core/quic_packet_creator.h
-index 785efb14..c268ddad 100644
+index 785efb14..6e7c0366 100644
 --- a/quiche/quic/core/quic_packet_creator.h
 +++ b/quiche/quic/core/quic_packet_creator.h
 @@ -316,6 +316,18 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
@@ -95,11 +94,11 @@ index 785efb14..c268ddad 100644
 +  // Getter method for current_spin_bit.
 +  bool GetCurrentSpinBit() const {return current_spin_bit;}
 +
-+  // Setter method for current_rtt.
-+  void SetCurrentRtt(int64_t rtt) {current_rtt = rtt;}
++  // Setter method for spin_bit_interval.
++  void SetSpinBitInterval(QuicTime interval) {spin_bit_interval = interval;}
 +
-+  // Getter method for current_rtt.
-+  int64_t GetCurrentRtt() const {return current_rtt;}
++  // Getter method for spin_bit_interval.
++  QuicTime GetSpinBitInterval() const {return spin_bit_interval;}
 +
    bool has_stop_waiting() const { return packet_.has_stop_waiting; }
  
@@ -110,11 +109,11 @@ index 785efb14..c268ddad 100644
    QuicByteCount max_datagram_frame_size_;
 +
 +  // Spin Bit value manintained internally by the endpoint.
-+  
 +  bool current_spin_bit = false;
 +
-+  // RTT used for Internal Spin Bit marking. Expressed in milliseconds.
-+  int64_t current_rtt = 0;
++  // Interval used for Internal Spin Bit marking. It is the sum of the
++  // current time and the latest RTT.
++  QuicTime spin_bit_interval = QuicTime::Zero();
 +
  };
  
@@ -157,7 +156,7 @@ index 263bdb9a..24c37784 100644
  
  struct QUIC_EXPORT_PRIVATE QuicPublicResetPacket {
 diff --git a/quiche/quic/core/quic_types.h b/quiche/quic/core/quic_types.h
-index d2f55b97..2e9dc3f1 100644
+index f4a2394b..ccdf47f2 100644
 --- a/quiche/quic/core/quic_types.h
 +++ b/quiche/quic/core/quic_types.h
 @@ -613,7 +613,7 @@ enum QuicPacketHeaderTypeFlags : uint8_t {
