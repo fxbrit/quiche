@@ -1332,7 +1332,7 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
       if(now >= interval) {
         QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
         // Note that latest_rtt could be 0 if no valid update occurred.
-        if (!latest_rtt.isZero()) {
+        if (!latest_rtt.IsZero()) {
           packet_creator_.SetSpinBitInterval(now + latest_rtt);
           QUIC_DVLOG(1) << ENDPOINT
           << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
