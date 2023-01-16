@@ -1,8 +1,8 @@
 diff --git a/quiche/quic/core/quic_connection.cc b/quiche/quic/core/quic_connection.cc
-index f22d8ed4..dd7d19cc 100644
+index f22d8ed4..e7ab0264 100644
 --- a/quiche/quic/core/quic_connection.cc
 +++ b/quiche/quic/core/quic_connection.cc
-@@ -1314,6 +1314,35 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
+@@ -1314,6 +1314,38 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
  
    --stats_.packets_dropped;
    QUIC_DVLOG(1) << ENDPOINT << "Received packet header: " << header;
@@ -22,14 +22,17 @@ index f22d8ed4..dd7d19cc 100644
 +        // Note that latest_rtt could be 0 if no valid update occurred.
 +        if (!latest_rtt.IsZero()) {
 +          packet_creator_.SetSpinBitInterval(now + latest_rtt);
-+          QUIC_DVLOG(1) << ENDPOINT
++          QUIC_DVLOG(0) << ENDPOINT
++          << "Measured latest_rtt is: " << latest_rtt.ToDebuggingValue();
++          QUIC_DVLOG(0) << ENDPOINT
 +          << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
 +          << " to: " << packet_creator_.GetSpinBitInterval().ToDebuggingValue();
 +          // After setting the new RTT interval for marking, flip the
 +          // Internal Spin Bit.
-+          packet_creator_.SetCurrentSpinBit(!header.spin_bit);
-+          QUIC_DVLOG(1) << ENDPOINT
-+          << "Inverting spin_bit from: " << header.spin_bit
++          bool spin_bit = packet_creator_.GetCurrentSpinBit();
++          packet_creator_.SetCurrentSpinBit(!spin_bit);
++          QUIC_DVLOG(0) << ENDPOINT
++          << "Inverting spin_bit from: " << spin_bit
 +          << " to: " << packet_creator_.GetCurrentSpinBit();
 +        }
 +      }
