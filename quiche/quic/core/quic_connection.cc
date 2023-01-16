@@ -1334,14 +1334,17 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
         // Note that latest_rtt could be 0 if no valid update occurred.
         if (!latest_rtt.IsZero()) {
           packet_creator_.SetSpinBitInterval(now + latest_rtt);
-          QUIC_DVLOG(1) << ENDPOINT
+          QUIC_DVLOG(0) << ENDPOINT
+          << "Measured latest_rtt is: " << latest_rtt.ToDebuggingValue();
+          QUIC_DVLOG(0) << ENDPOINT
           << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
           << " to: " << packet_creator_.GetSpinBitInterval().ToDebuggingValue();
           // After setting the new RTT interval for marking, flip the
           // Internal Spin Bit.
-          packet_creator_.SetCurrentSpinBit(!header.spin_bit);
-          QUIC_DVLOG(1) << ENDPOINT
-          << "Inverting spin_bit from: " << header.spin_bit
+          bool spin_bit = packet_creator_.GetCurrentSpinBit();
+          packet_creator_.SetCurrentSpinBit(!spin_bit);
+          QUIC_DVLOG(0) << ENDPOINT
+          << "Inverting spin_bit from: " << spin_bit
           << " to: " << packet_creator_.GetCurrentSpinBit();
         }
       }
