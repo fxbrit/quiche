@@ -542,23 +542,4 @@ void QuicClientBase::OnServerPreferredAddressAvailable(
       PathValidationReason::kServerPreferredAddressMigration);
 }
 
-void QuicClientBase::OnServerPreferredAddressAvailable(
-    const QuicSocketAddress& server_preferred_address) {
-  const auto self_address = session_->self_address();
-  if (network_helper_ == nullptr ||
-      !network_helper_->CreateUDPSocketAndBind(server_preferred_address,
-                                               self_address.host(), 0)) {
-    return;
-  }
-  QuicPacketWriter* writer = network_helper_->CreateQuicPacketWriter();
-  if (writer == nullptr) {
-    return;
-  }
-  session()->ValidatePath(
-      std::make_unique<PathMigrationContext>(
-          std::unique_ptr<QuicPacketWriter>(writer),
-          network_helper_->GetLatestClientAddress(), server_preferred_address),
-      std::make_unique<ServerPreferredAddressResultDelegateWithWriter>(this));
-}
-
 }  // namespace quic

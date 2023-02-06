@@ -5515,30 +5515,6 @@ TEST_P(EndToEndTest, SimpleServerPreferredAddressTest) {
   if (!GetClientConnection()->connection_migration_use_new_cid()) {
     return;
   }
-<<<<<<< HEAD
-=======
-  client_->Disconnect();
-  StopServer();
-  // server_address_ now contains the random listening port.
-  const QuicSocketAddress kServerPreferredAddress =
-      QuicSocketAddress(TestLoopback(2), server_address_.port());
-  ASSERT_NE(server_address_, kServerPreferredAddress);
-  // Send server preferred address and let server listen on Any.
-  if (kServerPreferredAddress.host().IsIPv4()) {
-    server_listening_address_ =
-        QuicSocketAddress(QuicIpAddress::Any4(), server_address_.port());
-    server_config_.SetIPv4AlternateServerAddressToSend(kServerPreferredAddress);
-  } else {
-    server_listening_address_ =
-        QuicSocketAddress(QuicIpAddress::Any6(), server_address_.port());
-    server_config_.SetIPv6AlternateServerAddressToSend(kServerPreferredAddress);
-  }
-  // Server restarts.
-  server_writer_ = new PacketDroppingTestWriter();
-  StartServer();
-
-  client_config_.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
->>>>>>> 2da3de08 (fix Internal Spin Bit implementation and relative patches (#1))
   client_.reset(CreateQuicClient(nullptr));
   QuicConnection* client_connection = GetClientConnection();
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
@@ -5567,27 +5543,6 @@ TEST_P(EndToEndTest, OptimizedServerPreferredAddress) {
   if (!GetClientConnection()->connection_migration_use_new_cid()) {
     return;
   }
-  client_->Disconnect();
-  StopServer();
-  // server_address_ now contains the random listening port.
-  const QuicSocketAddress kServerPreferredAddress =
-      QuicSocketAddress(TestLoopback(2), server_address_.port());
-  ASSERT_NE(server_address_, kServerPreferredAddress);
-  // Send server preferred address and let server listen on Any.
-  if (kServerPreferredAddress.host().IsIPv4()) {
-    server_listening_address_ =
-        QuicSocketAddress(QuicIpAddress::Any4(), server_address_.port());
-    server_config_.SetIPv4AlternateServerAddressToSend(kServerPreferredAddress);
-  } else {
-    server_listening_address_ =
-        QuicSocketAddress(QuicIpAddress::Any6(), server_address_.port());
-    server_config_.SetIPv6AlternateServerAddressToSend(kServerPreferredAddress);
-  }
-  // Server restarts.
-  server_writer_ = new PacketDroppingTestWriter();
-  StartServer();
-
-  client_config_.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
   client_config_.SetClientConnectionOptions(QuicTagVector{kSPA2});
   client_.reset(CreateQuicClient(nullptr));
   QuicConnection* client_connection = GetClientConnection();
