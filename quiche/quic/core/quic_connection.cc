@@ -1318,38 +1318,6 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
 
   --stats_.packets_dropped;
   QUIC_DVLOG(1) << ENDPOINT << "Received packet header: " << header;
-
-  // Update current_spin_bit and spin_bit_interval for Internal Spin Bit
-  // marking. Only client-side for now.
-  if(header.form == IETF_QUIC_SHORT_HEADER_PACKET &&
-    perspective_ == Perspective::IS_CLIENT &&
-    (!GetLargestReceivedPacket().IsInitialized() || header.packet_number > GetLargestReceivedPacket())){
-      QuicTime now = clock_->Now();
-      QuicTime interval = packet_creator_.GetSpinBitInterval();
-      // Check if we are past the current marking interval: in that case
-      // reset it and flip the Spin Bit. This will always happen on first
-      // iteration since interval will be 0.
-      if(now >= interval) {
-        QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
-        // Note that latest_rtt could be 0 if no valid update occurred.
-        if (!latest_rtt.IsZero()) {
-          packet_creator_.SetSpinBitInterval(now + latest_rtt);
-          QUIC_DVLOG(0) << ENDPOINT
-          << "Measured latest_rtt is: " << latest_rtt.ToDebuggingValue();
-          QUIC_DVLOG(0) << ENDPOINT
-          << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
-          << " to: " << packet_creator_.GetSpinBitInterval().ToDebuggingValue();
-          // After setting the new RTT interval for marking, flip the
-          // Internal Spin Bit.
-          bool spin_bit = packet_creator_.GetCurrentSpinBit();
-          packet_creator_.SetCurrentSpinBit(!spin_bit);
-          QUIC_DVLOG(0) << ENDPOINT
-          << "Inverting spin_bit from: " << spin_bit
-          << " to: " << packet_creator_.GetCurrentSpinBit();
-        }
-      }
-    }
-
   last_received_packet_info_.header = header;
   if (!stats_.first_decrypted_packet.IsInitialized()) {
     stats_.first_decrypted_packet =
@@ -4083,6 +4051,37 @@ void QuicConnection::MaybeCreateMultiPortPath() {
 }
 
 void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
+
+  // If QUIC version has IETF header and packet has short header. Only client side for now.
+  if (version().HasIetfInvariantHeader() &&
+      packet.encryption_level == ENCRYPTION_FORWARD_SECURE &&
+      perspective_ == Perspective::IS_CLIENT)
+  {
+    QuicTime now = clock_->Now();
+    QuicTime interval = packet_creator_.GetSpinBitInterval();
+    // If we are past the current marking interval reset it and flip the Spin Bit. On first
+    // iteration interval is 0.
+    if (now >= interval)
+    {
+      QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
+      // The latest_rtt could be 0 if no valid update occurred.
+      if (!latest_rtt.IsZero())
+      {
+          packet_creator_.SetSpinBitInterval(now + latest_rtt);
+          QUIC_DVLOG(0) << ENDPOINT
+                        << "Measured latest_rtt is: " << latest_rtt.ToDebuggingValue();
+          QUIC_DVLOG(0) << ENDPOINT
+                        << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
+                        << " to: " << packet_creator_.GetSpinBitInterval().ToDebuggingValue();
+          bool spin_bit = packet_creator_.GetCurrentSpinBit();
+          packet_creator_.SetCurrentSpinBit(!spin_bit);
+          QUIC_DVLOG(0) << ENDPOINT
+                        << "Inverting spin_bit from: " << spin_bit
+                        << " to: " << packet_creator_.GetCurrentSpinBit();
+      }
+    }
+  }
+
   // The caller of this function is responsible for checking CanWrite().
   WritePacket(&packet);
 }
