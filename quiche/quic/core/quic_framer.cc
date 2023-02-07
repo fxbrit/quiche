@@ -2812,14 +2812,6 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
     header->source_connection_id_included =
         header->version_flag ? CONNECTION_ID_PRESENT : CONNECTION_ID_ABSENT;
 
-    if(header->form == IETF_QUIC_SHORT_HEADER_PACKET){
-      QUIC_DVLOG(1) <<  ENDPOINT << "Processing short packet header";
-
-      header->spin_bit = header->type_byte & SPIN_BIT;
-      // QUIC_DVLOG(1) <<  ENDPOINT << "current_spin_bit = " << current_spin_bit;
-      QUIC_DVLOG(1) <<  ENDPOINT << "Header spin bit received = " << header->spin_bit;
-    }
-
     if (!ValidateReceivedConnectionIds(*header)) {
       return false;
     }
