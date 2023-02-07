@@ -1,46 +1,45 @@
 diff --git a/quiche/quic/core/quic_connection.cc b/quiche/quic/core/quic_connection.cc
-index 9d4f882e..32bf9457 100644
+index 9d4f882e..a13c1447 100644
 --- a/quiche/quic/core/quic_connection.cc
 +++ b/quiche/quic/core/quic_connection.cc
-@@ -1318,6 +1318,38 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
+@@ -4051,6 +4051,37 @@ void QuicConnection::MaybeCreateMultiPortPath() {
+ }
  
-   --stats_.packets_dropped;
-   QUIC_DVLOG(1) << ENDPOINT << "Received packet header: " << header;
+ void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
 +
-+  // Update current_spin_bit and spin_bit_interval for Internal Spin Bit
-+  // marking. Only client-side for now.
-+  if(header.form == IETF_QUIC_SHORT_HEADER_PACKET &&
-+    perspective_ == Perspective::IS_CLIENT &&
-+    (!GetLargestReceivedPacket().IsInitialized() || header.packet_number > GetLargestReceivedPacket())){
-+      QuicTime now = clock_->Now();
-+      QuicTime interval = packet_creator_.GetSpinBitInterval();
-+      // Check if we are past the current marking interval: in that case
-+      // reset it and flip the Spin Bit. This will always happen on first
-+      // iteration since interval will be 0.
-+      if(now >= interval) {
-+        QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
-+        // Note that latest_rtt could be 0 if no valid update occurred.
-+        if (!latest_rtt.IsZero()) {
++  // If QUIC version has IETF header and packet has short header. Only client side for now.
++  if (version().HasIetfInvariantHeader() &&
++      packet.encryption_level == ENCRYPTION_FORWARD_SECURE &&
++      perspective_ == Perspective::IS_CLIENT)
++  {
++    QuicTime now = clock_->Now();
++    QuicTime interval = packet_creator_.GetSpinBitInterval();
++    // If we are past the current marking interval reset it and flip the Spin Bit. On first
++    // iteration interval is 0.
++    if (now >= interval)
++    {
++      QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
++      // The latest_rtt could be 0 if no valid update occurred.
++      if (!latest_rtt.IsZero())
++      {
 +          packet_creator_.SetSpinBitInterval(now + latest_rtt);
 +          QUIC_DVLOG(0) << ENDPOINT
-+          << "Measured latest_rtt is: " << latest_rtt.ToDebuggingValue();
++                        << "Measured latest_rtt is: " << latest_rtt.ToDebuggingValue();
 +          QUIC_DVLOG(0) << ENDPOINT
-+          << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
-+          << " to: " << packet_creator_.GetSpinBitInterval().ToDebuggingValue();
-+          // After setting the new RTT interval for marking, flip the
-+          // Internal Spin Bit.
++                        << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
++                        << " to: " << packet_creator_.GetSpinBitInterval().ToDebuggingValue();
 +          bool spin_bit = packet_creator_.GetCurrentSpinBit();
 +          packet_creator_.SetCurrentSpinBit(!spin_bit);
 +          QUIC_DVLOG(0) << ENDPOINT
-+          << "Inverting spin_bit from: " << spin_bit
-+          << " to: " << packet_creator_.GetCurrentSpinBit();
-+        }
++                        << "Inverting spin_bit from: " << spin_bit
++                        << " to: " << packet_creator_.GetCurrentSpinBit();
 +      }
 +    }
++  }
 +
-   last_received_packet_info_.header = header;
-   if (!stats_.first_decrypted_packet.IsInitialized()) {
-     stats_.first_decrypted_packet =
+   // The caller of this function is responsible for checking CanWrite().
+   WritePacket(&packet);
+ }
 diff --git a/quiche/quic/core/quic_flags_list.h b/quiche/quic/core/quic_flags_list.h
 index e8697d68..44a17477 100644
 --- a/quiche/quic/core/quic_flags_list.h
@@ -55,7 +54,7 @@ index e8697d68..44a17477 100644
  QUIC_FLAG(quic_reloadable_flag_quic_verify_request_headers_2, true)
  // If true, reject or send error response code upon receiving invalid request or response headers. This flag depends on --gfe2_reloadable_flag_quic_verify_request_headers_2.
 diff --git a/quiche/quic/core/quic_framer.cc b/quiche/quic/core/quic_framer.cc
-index 8a506fdf..d26cce13 100644
+index 8a506fdf..b4b3a21f 100644
 --- a/quiche/quic/core/quic_framer.cc
 +++ b/quiche/quic/core/quic_framer.cc
 @@ -2246,8 +2246,9 @@ bool QuicFramer::AppendIetfHeaderTypeByte(const QuicPacketHeader& header,
@@ -69,21 +68,6 @@ index 8a506fdf..d26cce13 100644
    }
    return writer->WriteUInt8(type);
  }
-@@ -2811,6 +2812,14 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
-     header->source_connection_id_included =
-         header->version_flag ? CONNECTION_ID_PRESENT : CONNECTION_ID_ABSENT;
- 
-+    if(header->form == IETF_QUIC_SHORT_HEADER_PACKET){
-+      QUIC_DVLOG(1) <<  ENDPOINT << "Processing short packet header";
-+
-+      header->spin_bit = header->type_byte & SPIN_BIT;
-+      // QUIC_DVLOG(1) <<  ENDPOINT << "current_spin_bit = " << current_spin_bit;
-+      QUIC_DVLOG(1) <<  ENDPOINT << "Header spin bit received = " << header->spin_bit;
-+    }
-+
-     if (!ValidateReceivedConnectionIds(*header)) {
-       return false;
-     }
 diff --git a/quiche/quic/core/quic_packet_creator.cc b/quiche/quic/core/quic_packet_creator.cc
 index 2a0974f4..145efe91 100644
 --- a/quiche/quic/core/quic_packet_creator.cc
