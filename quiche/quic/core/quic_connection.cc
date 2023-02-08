@@ -4070,7 +4070,7 @@ void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
           packet_creator_.SetSpinBitInterval(now + latest_rtt);
           QUIC_DVLOG(0) << ENDPOINT
                         << "Measured latest_rtt is: " << latest_rtt.ToDebuggingValue();
-          QUIC_DVLOG(0) << ENDPOINT
+          QUIC_DVLOG(1) << ENDPOINT
                         << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
                         << " to: " << packet_creator_.GetSpinBitInterval().ToDebuggingValue();
           bool spin_bit = packet_creator_.GetCurrentSpinBit();
