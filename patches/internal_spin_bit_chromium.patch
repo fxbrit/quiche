@@ -1,5 +1,5 @@
 diff --git a/quiche/quic/core/quic_connection.cc b/quiche/quic/core/quic_connection.cc
-index 9d4f882e..a13c1447 100644
+index 9d4f882e..ac51d17a 100644
 --- a/quiche/quic/core/quic_connection.cc
 +++ b/quiche/quic/core/quic_connection.cc
 @@ -4051,6 +4051,37 @@ void QuicConnection::MaybeCreateMultiPortPath() {
@@ -25,7 +25,7 @@ index 9d4f882e..a13c1447 100644
 +          packet_creator_.SetSpinBitInterval(now + latest_rtt);
 +          QUIC_DVLOG(0) << ENDPOINT
 +                        << "Measured latest_rtt is: " << latest_rtt.ToDebuggingValue();
-+          QUIC_DVLOG(0) << ENDPOINT
++          QUIC_DVLOG(1) << ENDPOINT
 +                        << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
 +                        << " to: " << packet_creator_.GetSpinBitInterval().ToDebuggingValue();
 +          bool spin_bit = packet_creator_.GetCurrentSpinBit();
@@ -40,19 +40,6 @@ index 9d4f882e..a13c1447 100644
    // The caller of this function is responsible for checking CanWrite().
    WritePacket(&packet);
  }
-diff --git a/quiche/quic/core/quic_flags_list.h b/quiche/quic/core/quic_flags_list.h
-index e8697d68..44a17477 100644
---- a/quiche/quic/core/quic_flags_list.h
-+++ b/quiche/quic/core/quic_flags_list.h
-@@ -56,7 +56,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_remove_connection_migration_connection_optio
- // If true, include stream information in idle timeout connection close detail.
- QUIC_FLAG(quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
- // If true, lowers the minimum packet size to that in the spec.
--QUIC_FLAG(quic_restart_flag_quic_allow_smaller_packets, false)
-+QUIC_FLAG(quic_restart_flag_quic_allow_smaller_packets, true)
- // If true, quic server will send ENABLE_CONNECT_PROTOCOL setting and and endpoint will validate required request/response headers and extended CONNECT mechanism and update code counts of valid/invalid headers.
- QUIC_FLAG(quic_reloadable_flag_quic_verify_request_headers_2, true)
- // If true, reject or send error response code upon receiving invalid request or response headers. This flag depends on --gfe2_reloadable_flag_quic_verify_request_headers_2.
 diff --git a/quiche/quic/core/quic_framer.cc b/quiche/quic/core/quic_framer.cc
 index 8a506fdf..b4b3a21f 100644
 --- a/quiche/quic/core/quic_framer.cc
@@ -69,13 +56,14 @@ index 8a506fdf..b4b3a21f 100644
    return writer->WriteUInt8(type);
  }
 diff --git a/quiche/quic/core/quic_packet_creator.cc b/quiche/quic/core/quic_packet_creator.cc
-index 2a0974f4..145efe91 100644
+index 2a0974f4..10fa0a24 100644
 --- a/quiche/quic/core/quic_packet_creator.cc
 +++ b/quiche/quic/core/quic_packet_creator.cc
-@@ -1704,6 +1704,7 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
+@@ -1704,6 +1704,8 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
    header->length_length = GetLengthLength();
    header->remaining_packet_length = 0;
    if (!HasIetfLongHeader()) {
++    QUIC_DVLOG(1) << ENDPOINT << "Setting Spin Bit: " << current_spin_bit;
 +    header->spin_bit = current_spin_bit;
      return;
    }
@@ -169,31 +157,3 @@ index c77f5359..87611028 100644
    // Bit 6: the 'QUIC' bit.
    FLAGS_FIXED_BIT = 1 << 6,
    // Bit 7: Indicates the header is long or short header.
-diff --git a/quiche/quic/core/quic_udp_socket_posix.cc b/quiche/quic/core/quic_udp_socket_posix.cc
-index 0bbb9b7f..d1d51770 100644
---- a/quiche/quic/core/quic_udp_socket_posix.cc
-+++ b/quiche/quic/core/quic_udp_socket_posix.cc
-@@ -469,23 +469,6 @@ void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
-     packet_info->SetPeerAddress(QuicSocketAddress(raw_peer_address));
-   }
- 
--  if (packet_info_interested.IsSet(QuicUdpPacketInfoBit::ECN)) {
--    int ecn;
--    socklen_t optlen = sizeof(ecn);
--    if (raw_peer_address.ss_family == AF_INET &&
--        getsockopt(fd, IPPROTO_IP, IP_TOS, &ecn, &optlen) == 0) {
--      packet_info->SetEcnCodepoint(
--          QuicEcnCodepoint(static_cast<uint8_t>(ecn) & kEcnMask));
--    } else if (raw_peer_address.ss_family == AF_INET6 &&
--               getsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &ecn, &optlen) == 0) {
--      packet_info->SetEcnCodepoint(
--          QuicEcnCodepoint(static_cast<uint8_t>(ecn) & kEcnMask));
--    } else {
--      // Fail back to not reporting ECN marks.
--      packet_info->SetEcnCodepoint(ECN_NOT_ECT);
--    }
--  }
--
-   if (hdr.msg_controllen > 0) {
-     for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&hdr); cmsg != nullptr;
-          cmsg = CMSG_NXTHDR(&hdr, cmsg)) {

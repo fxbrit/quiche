@@ -1,5 +1,5 @@
 diff --git a/quiche/quic/core/quic_connection.cc b/quiche/quic/core/quic_connection.cc
-index 9d4f882e..a13c1447 100644
+index 9d4f882e..ac51d17a 100644
 --- a/quiche/quic/core/quic_connection.cc
 +++ b/quiche/quic/core/quic_connection.cc
 @@ -4051,6 +4051,37 @@ void QuicConnection::MaybeCreateMultiPortPath() {
@@ -25,7 +25,7 @@ index 9d4f882e..a13c1447 100644
 +          packet_creator_.SetSpinBitInterval(now + latest_rtt);
 +          QUIC_DVLOG(0) << ENDPOINT
 +                        << "Measured latest_rtt is: " << latest_rtt.ToDebuggingValue();
-+          QUIC_DVLOG(0) << ENDPOINT
++          QUIC_DVLOG(1) << ENDPOINT
 +                        << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
 +                        << " to: " << packet_creator_.GetSpinBitInterval().ToDebuggingValue();
 +          bool spin_bit = packet_creator_.GetCurrentSpinBit();
@@ -56,13 +56,14 @@ index 8a506fdf..b4b3a21f 100644
    return writer->WriteUInt8(type);
  }
 diff --git a/quiche/quic/core/quic_packet_creator.cc b/quiche/quic/core/quic_packet_creator.cc
-index 2a0974f4..145efe91 100644
+index 2a0974f4..10fa0a24 100644
 --- a/quiche/quic/core/quic_packet_creator.cc
 +++ b/quiche/quic/core/quic_packet_creator.cc
-@@ -1704,6 +1704,7 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
+@@ -1704,6 +1704,8 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
    header->length_length = GetLengthLength();
    header->remaining_packet_length = 0;
    if (!HasIetfLongHeader()) {
++    QUIC_DVLOG(1) << ENDPOINT << "Setting Spin Bit: " << current_spin_bit;
 +    header->spin_bit = current_spin_bit;
      return;
    }
