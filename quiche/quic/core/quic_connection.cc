@@ -4052,10 +4052,15 @@ void QuicConnection::MaybeCreateMultiPortPath() {
 }
 
 void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
+  // The caller of this function is responsible for checking CanWrite().
+  WritePacket(&packet);
+  FlipSpinBit(&packet);
+}
 
-  // If QUIC version has IETF header and packet has short header. Only client side for now.
+void QuicConnection::FlipSpinBit(SerializedPacket* packet) {
+  // Only on IETF short header and client side.
   if (version().HasIetfInvariantHeader() &&
-      packet.encryption_level == ENCRYPTION_FORWARD_SECURE &&
+      packet->encryption_level == ENCRYPTION_FORWARD_SECURE &&
       perspective_ == Perspective::IS_CLIENT)
   {
     QuicTime now = clock_->Now();
@@ -4064,7 +4069,8 @@ void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
     // iteration interval is 0.
     if (now >= interval)
     {
-      QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
+      // QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
+      QuicTime::Delta latest_rtt = QuicTime::Delta::FromMilliseconds(50);
       // The latest_rtt could be 0 if no valid update occurred.
       if (!latest_rtt.IsZero())
       {
@@ -4082,9 +4088,6 @@ void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
       }
     }
   }
-
-  // The caller of this function is responsible for checking CanWrite().
-  WritePacket(&packet);
 }
 
 void QuicConnection::SendAck() {
