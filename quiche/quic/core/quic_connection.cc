@@ -3364,7 +3364,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       << " encrypted_length=" << encrypted_length
       << " > packet_creator max_packet_length="
       << packet_creator_.max_packet_length();
-  QUIC_DVLOG(1) << ENDPOINT << "Sending packet " << packet_number << " : "
+  QUIC_DVLOG(0) << ENDPOINT << "Sending packet " << packet_number << " : "
                 << (IsRetransmittable(*packet) == HAS_RETRANSMITTABLE_DATA
                         ? "data bearing "
                         : " ack or probing only ")
@@ -3464,6 +3464,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       // a normal(non-GSO) packet, so the kernel can return EMSGSIZE and we will
       // not close the connection.
       if (is_mtu_discovery && writer_->IsBatchMode()) {
+        QUIC_DVLOG(1) << ENDPOINT << "Using batch mode.";
         result = writer_->Flush();
       }
       break;

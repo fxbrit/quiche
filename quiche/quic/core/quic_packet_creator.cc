@@ -1704,7 +1704,8 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
   header->length_length = GetLengthLength();
   header->remaining_packet_length = 0;
   if (!HasIetfLongHeader()) {
-    QUIC_DVLOG(1) << ENDPOINT << "Setting Spin Bit: " << current_spin_bit;
+    QUIC_DVLOG(1) << ENDPOINT << "Packet number: " << header->packet_number
+                  << ", Spin Bit: " << current_spin_bit;
     header->spin_bit = current_spin_bit;
     return;
   }
