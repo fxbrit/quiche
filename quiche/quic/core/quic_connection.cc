@@ -4069,8 +4069,9 @@ void QuicConnection::FlipSpinBit(SerializedPacket* packet) {
     // iteration interval is 0.
     if (now >= interval)
     {
-      // QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
-      QuicTime::Delta latest_rtt = QuicTime::Delta::FromMilliseconds(50);
+      QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
+      // Below line sets a fixed marking interval for debugging.
+      // QuicTime::Delta latest_rtt = QuicTime::Delta::FromMilliseconds(50);
       // The latest_rtt could be 0 if no valid update occurred.
       if (!latest_rtt.IsZero())
       {
