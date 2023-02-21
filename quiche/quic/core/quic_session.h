@@ -334,7 +334,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void RegisterStreamPriority(QuicStreamId id, bool is_static,
                               const QuicStreamPriority& priority) override;
   // Clears priority from the write blocked list.
-  void UnregisterStreamPriority(QuicStreamId id, bool is_static) override;
+  void UnregisterStreamPriority(QuicStreamId id) override;
   // Updates priority on the write blocked list.
   void UpdateStreamPriority(QuicStreamId id,
                             const QuicStreamPriority& new_priority) override;
@@ -639,6 +639,14 @@ class QUIC_EXPORT_PRIVATE QuicSession
       const ParsedQuicVersionVector& client_original_supported_versions) {
     QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
     client_original_supported_versions_ = client_original_supported_versions;
+  }
+
+  // Controls whether the default datagram queue used by the session actually
+  // queues the datagram.  If set to true, the datagrams in the default queue
+  // will be forcefully flushed, potentially bypassing congestion control and
+  // other limitations.
+  void SetForceFlushForDefaultQueue(bool force_flush) {
+    datagram_queue_.SetForceFlush(force_flush);
   }
 
  protected:
