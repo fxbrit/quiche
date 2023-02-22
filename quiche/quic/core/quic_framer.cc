@@ -2248,7 +2248,7 @@ bool QuicFramer::AppendIetfHeaderTypeByte(const QuicPacketHeader& header,
     type = static_cast<uint8_t>(
         FLAGS_FIXED_BIT | (header.spin_bit ? SPIN_BIT : 0) | (current_key_phase_bit_ ? FLAGS_KEY_PHASE_BIT : 0) |
         PacketNumberLengthToOnWireValue(header.packet_number_length));
-        QUIC_DVLOG(0) << ENDPOINT << "Appending IETF type byte with header.spin_bit = " << header.spin_bit;
+        QUIC_DVLOG(1) << ENDPOINT << "Appending IETF type byte with header.spin_bit = " << header.spin_bit;
   }
   return writer->WriteUInt8(type);
 }

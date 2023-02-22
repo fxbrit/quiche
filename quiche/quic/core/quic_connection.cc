@@ -3364,7 +3364,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       << " encrypted_length=" << encrypted_length
       << " > packet_creator max_packet_length="
       << packet_creator_.max_packet_length();
-  QUIC_DVLOG(0) << ENDPOINT << "Sending packet " << packet_number << " : "
+  QUIC_DVLOG(1) << ENDPOINT << "Sending packet " << packet_number << " : "
                 << (IsRetransmittable(*packet) == HAS_RETRANSMITTABLE_DATA
                         ? "data bearing "
                         : " ack or probing only ")
@@ -4052,9 +4052,9 @@ void QuicConnection::MaybeCreateMultiPortPath() {
 }
 
 void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
+  FlipSpinBit(&packet);
   // The caller of this function is responsible for checking CanWrite().
   WritePacket(&packet);
-  FlipSpinBit(&packet);
 }
 
 void QuicConnection::FlipSpinBit(SerializedPacket* packet) {
