@@ -1,15 +1,28 @@
 diff --git a/quiche/quic/core/quic_connection.cc b/quiche/quic/core/quic_connection.cc
-index 9d4f882e..ac51d17a 100644
+index 9d4f882e..b5f306c5 100644
 --- a/quiche/quic/core/quic_connection.cc
 +++ b/quiche/quic/core/quic_connection.cc
-@@ -4051,6 +4051,37 @@ void QuicConnection::MaybeCreateMultiPortPath() {
+@@ -3464,6 +3464,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
+       // a normal(non-GSO) packet, so the kernel can return EMSGSIZE and we will
+       // not close the connection.
+       if (is_mtu_discovery && writer_->IsBatchMode()) {
++        QUIC_DVLOG(1) << ENDPOINT << "Using batch mode.";
+         result = writer_->Flush();
+       }
+       break;
+@@ -4051,10 +4052,45 @@ void QuicConnection::MaybeCreateMultiPortPath() {
  }
  
  void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
-+
-+  // If QUIC version has IETF header and packet has short header. Only client side for now.
++  FlipSpinBit(&packet);
+   // The caller of this function is responsible for checking CanWrite().
+   WritePacket(&packet);
+ }
+ 
++void QuicConnection::FlipSpinBit(SerializedPacket* packet) {
++  // Only on IETF short header and client side.
 +  if (version().HasIetfInvariantHeader() &&
-+      packet.encryption_level == ENCRYPTION_FORWARD_SECURE &&
++      packet->encryption_level == ENCRYPTION_FORWARD_SECURE &&
 +      perspective_ == Perspective::IS_CLIENT)
 +  {
 +    QuicTime now = clock_->Now();
@@ -19,6 +32,8 @@ index 9d4f882e..ac51d17a 100644
 +    if (now >= interval)
 +    {
 +      QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
++      // Below line sets a fixed marking interval for debugging.
++      // QuicTime::Delta latest_rtt = QuicTime::Delta::FromMilliseconds(50);
 +      // The latest_rtt could be 0 if no valid update occurred.
 +      if (!latest_rtt.IsZero())
 +      {
@@ -36,10 +51,25 @@ index 9d4f882e..ac51d17a 100644
 +      }
 +    }
 +  }
++}
 +
-   // The caller of this function is responsible for checking CanWrite().
-   WritePacket(&packet);
- }
+ void QuicConnection::SendAck() {
+   QUICHE_DCHECK(!SupportsMultiplePacketNumberSpaces());
+   QUIC_DVLOG(1) << ENDPOINT << "Sending an ACK proactively";
+diff --git a/quiche/quic/core/quic_connection.h b/quiche/quic/core/quic_connection.h
+index 8a8717be..15fd464e 100644
+--- a/quiche/quic/core/quic_connection.h
++++ b/quiche/quic/core/quic_connection.h
+@@ -1945,6 +1945,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
+   // Returns true if |address| is known server address.
+   bool IsKnownServerAddress(const QuicSocketAddress& address) const;
+ 
++  // Flips the Spin Bit according to the Internal Spin Bit logic.
++  void FlipSpinBit(SerializedPacket* packet);
++
+   QuicConnectionContext context_;
+ 
+   QuicFramer framer_;
 diff --git a/quiche/quic/core/quic_framer.cc b/quiche/quic/core/quic_framer.cc
 index 8a506fdf..b4b3a21f 100644
 --- a/quiche/quic/core/quic_framer.cc
@@ -56,14 +86,15 @@ index 8a506fdf..b4b3a21f 100644
    return writer->WriteUInt8(type);
  }
 diff --git a/quiche/quic/core/quic_packet_creator.cc b/quiche/quic/core/quic_packet_creator.cc
-index 2a0974f4..10fa0a24 100644
+index 2a0974f4..c7b8dd68 100644
 --- a/quiche/quic/core/quic_packet_creator.cc
 +++ b/quiche/quic/core/quic_packet_creator.cc
-@@ -1704,6 +1704,8 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
+@@ -1704,6 +1704,9 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
    header->length_length = GetLengthLength();
    header->remaining_packet_length = 0;
    if (!HasIetfLongHeader()) {
-+    QUIC_DVLOG(1) << ENDPOINT << "Setting Spin Bit: " << current_spin_bit;
++    QUIC_DVLOG(1) << ENDPOINT << "Packet number: " << header->packet_number
++                  << ", Spin Bit: " << current_spin_bit;
 +    header->spin_bit = current_spin_bit;
      return;
    }
