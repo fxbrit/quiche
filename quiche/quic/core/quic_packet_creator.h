@@ -36,6 +36,9 @@
 #include "quiche/common/quiche_circular_deque.h"
 
 namespace quic {
+
+class QuicClock;
+
 namespace test {
 class QuicPacketCreatorPeer;
 }
@@ -334,6 +337,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Getter method for latest_rtt_received_.
   QuicTime::Delta GetLatestRttReceived() const { return latest_rtt_received_; }
+
+  // Flips the Spin Bit according to the Internal Spin Bit logic.
+  void MaybeFlipSpinBit();
 
   bool has_stop_waiting() const { return packet_.has_stop_waiting; }
 
@@ -716,6 +722,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Latest RTT received from the connection.
   QuicTime::Delta latest_rtt_received_;
+
+  // Clock used to compute the Internal Spin Bit marking interval.
+  const QuicClock* clock_;
 
 };
 

@@ -4053,7 +4053,6 @@ void QuicConnection::MaybeCreateMultiPortPath() {
 }
 
 void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
-  FlipSpinBit(&packet);
   // The caller of this function is responsible for checking CanWrite().
   WritePacket(&packet);
 }

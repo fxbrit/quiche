@@ -1713,6 +1713,7 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
   header->length_length = GetLengthLength();
   header->remaining_packet_length = 0;
   if (!HasIetfLongHeader()) {
+    MaybeFlipSpinBit();
     QUIC_DVLOG(1) << ENDPOINT << "Packet number: " << header->packet_number
                   << ", Spin Bit: " << current_spin_bit;
     header->spin_bit = current_spin_bit;
@@ -1720,6 +1721,31 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
   }
   header->long_packet_type =
       EncryptionlevelToLongHeaderType(packet_.encryption_level);
+}
+
+void QuicPacketCreator::MaybeFlipSpinBit() {
+  QuicTime interval = GetSpinBitInterval();
+  QuicTime now = clock_->Now();
+  if (now >= interval)
+    {
+      QuicTime::Delta latest_rtt = GetLatestRttReceived();
+      // Below line sets a fixed marking interval for debugging.
+      // QuicTime::Delta latest_rtt = QuicTime::Delta::FromMilliseconds(50);
+      if (!latest_rtt.IsZero())
+      {
+          SetSpinBitInterval(now + latest_rtt);
+          QUIC_DVLOG(0) << ENDPOINT
+                        << "Measured latest_rtt is: " << latest_rtt.ToDebuggingValue();
+          QUIC_DVLOG(1) << ENDPOINT
+                        << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
+                        << " to: " << GetSpinBitInterval().ToDebuggingValue();
+          bool spin_bit = GetCurrentSpinBit();
+          SetCurrentSpinBit(!spin_bit);
+          QUIC_DVLOG(0) << ENDPOINT
+                        << "Inverting spin_bit from: " << spin_bit
+                        << " to: " << GetCurrentSpinBit();
+      }
+    }
 }
 
 size_t QuicPacketCreator::GetSerializedFrameLength(const QuicFrame& frame) {
