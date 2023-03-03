@@ -28,6 +28,7 @@
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -328,6 +329,12 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Getter method for spin_bit_interval.
   QuicTime GetSpinBitInterval() const {return spin_bit_interval;}
 
+  // Setter method for latest_rtt_received_.
+  void SetLatestRttReceived(QuicTime::Delta latest_rtt) { latest_rtt_received_ = latest_rtt; }
+
+  // Getter method for latest_rtt_received_.
+  QuicTime::Delta GetLatestRttReceived() const { return latest_rtt_received_; }
+
   bool has_stop_waiting() const { return packet_.has_stop_waiting; }
 
   // Sets the encrypter to use for the encryption level and updates the max
@@ -369,7 +376,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // accommodate, the padding will overflow to the next packet(s).
   QuicConsumedData ConsumeData(QuicStreamId id, size_t write_length,
                                QuicStreamOffset offset,
-                               StreamSendingState state);
+                               StreamSendingState state,
+                               QuicTime::Delta latest_rtt);
 
   // Sends as many data only packets as allowed by the send algorithm and the
   // available iov.
@@ -705,6 +713,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Interval used for Internal Spin Bit marking. It is the sum of the
   // current time and the latest RTT.
   QuicTime spin_bit_interval = QuicTime::Zero();
+
+  // Latest RTT received from the connection.
+  QuicTime::Delta latest_rtt_received_;
 
 };
 

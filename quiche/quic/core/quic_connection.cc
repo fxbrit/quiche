@@ -2495,7 +2495,8 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
   // a SHLO from the server, leading to two different decrypters at the
   // server.)
   ScopedPacketFlusher flusher(this);
-  return packet_creator_.ConsumeData(id, write_length, offset, state);
+  QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
+  return packet_creator_.ConsumeData(id, write_length, offset, state, latest_rtt);
 }
 
 bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
@@ -6737,6 +6738,8 @@ void QuicConnection::CancelPathValidation() {
   path_validator_.CancelPathValidation();
 }
 
+// On path migration update Connection ID: if it returns true
+// we should reset Spin Bit and marking interval.
 bool QuicConnection::UpdateConnectionIdsOnMigration(
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address) {
@@ -6827,6 +6830,8 @@ bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
       }
       return false;
     }
+    // If we are here Connection ID has been updated as result
+    // of a path migration.
     if (packet_creator_.GetServerConnectionId().length() !=
         default_path_.server_connection_id.length()) {
       packet_creator_.FlushCurrentPacket();

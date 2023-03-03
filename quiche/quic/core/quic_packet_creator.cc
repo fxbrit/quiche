@@ -27,6 +27,7 @@
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
@@ -1337,7 +1338,8 @@ bool QuicPacketCreator::ConsumeRetransmittableControlFrame(
 QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
                                                 size_t write_length,
                                                 QuicStreamOffset offset,
-                                                StreamSendingState state) {
+                                                StreamSendingState state,
+                                                QuicTime::Delta latest_rtt) {
   QUIC_BUG_IF(quic_bug_10752_21, !flusher_attached_)
       << ENDPOINT
       << "Packet flusher is not attached when "
@@ -1347,6 +1349,13 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
   bool fin = state != NO_FIN;
   QUIC_BUG_IF(quic_bug_12398_17, has_handshake && fin)
       << ENDPOINT << "Handshake packets should never send a fin";
+
+  QUIC_DVLOG(1) << ENDPOINT
+                << "Updating latest_rtt_receveid from: "
+                << GetLatestRttReceived().ToDebuggingValue()
+                << " to: " << latest_rtt.ToDebuggingValue();
+  SetLatestRttReceived(latest_rtt);
+
   // To make reasoning about crypto frames easier, we don't combine them with
   // other retransmittable frames in a single packet.
   if (has_handshake && HasPendingRetransmittableFrames()) {
