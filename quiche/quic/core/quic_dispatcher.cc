@@ -158,7 +158,7 @@ class StatelessConnectionTerminator {
                 /*unused*/ QuicTime::Zero(), Perspective::IS_SERVER,
                 /*unused*/ kQuicDefaultConnectionIdLength),
         collector_(helper->GetStreamSendBufferAllocator()),
-        creator_(server_connection_id, &framer_, &collector_),
+        creator_(server_connection_id, &framer_, &collector_, nullptr),
         time_wait_list_manager_(time_wait_list_manager) {
     framer_.set_data_producer(&collector_);
     // Always set encrypter with original_server_connection_id.

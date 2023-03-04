@@ -308,7 +308,7 @@ QuicConnection::QuicConnection(
           arena_.New<MultiPortProbingAlarmDelegate>(this), &arena_)),
       visitor_(nullptr),
       debug_visitor_(nullptr),
-      packet_creator_(server_connection_id, &framer_, random_generator_, this),
+      packet_creator_(server_connection_id, &framer_, random_generator_, this, clock_),
       last_received_packet_info_(clock_->ApproximateNow()),
       sent_packet_manager_(perspective, clock_, random_generator_, &stats_,
                            GetDefaultCongestionControlType()),

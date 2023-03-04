@@ -24,6 +24,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
+#include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_coalesced_packet.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_framer.h"
@@ -115,9 +116,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   };
 
   QuicPacketCreator(QuicConnectionId server_connection_id, QuicFramer* framer,
-                    DelegateInterface* delegate);
+                    DelegateInterface* delegate, const QuicClock* clock);
   QuicPacketCreator(QuicConnectionId server_connection_id, QuicFramer* framer,
-                    QuicRandom* random, DelegateInterface* delegate);
+                    QuicRandom* random, DelegateInterface* delegate,
+                    const QuicClock* clock);
   QuicPacketCreator(const QuicPacketCreator&) = delete;
   QuicPacketCreator& operator=(const QuicPacketCreator&) = delete;
 
@@ -721,7 +723,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   QuicTime spin_bit_interval = QuicTime::Zero();
 
   // Latest RTT received from the connection.
-  QuicTime::Delta latest_rtt_received_;
+  QuicTime::Delta latest_rtt_received_ = QuicTime::Delta::Zero();
 
   // Clock used to compute the Internal Spin Bit marking interval.
   const QuicClock* clock_;

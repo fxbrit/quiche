@@ -23,6 +23,7 @@
 #include "quiche/quic/core/frames/quic_path_challenge_frame.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
 #include "quiche/quic/core/quic_chaos_protector.h"
+#include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
@@ -105,13 +106,15 @@ class ScopedPacketContextSwitcher {
 
 QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
                                      QuicFramer* framer,
-                                     DelegateInterface* delegate)
+                                     DelegateInterface* delegate,
+                                     const QuicClock* clock)
     : QuicPacketCreator(server_connection_id, framer, QuicRandom::GetInstance(),
-                        delegate) {}
+                        delegate, clock) {}
 
 QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
                                      QuicFramer* framer, QuicRandom* random,
-                                     DelegateInterface* delegate)
+                                     DelegateInterface* delegate,
+                                     const QuicClock* clock)
     : delegate_(delegate),
       debug_delegate_(nullptr),
       framer_(framer),
@@ -131,7 +134,8 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       flusher_attached_(false),
       fully_pad_crypto_handshake_packets_(true),
       latched_hard_max_packet_length_(0),
-      max_datagram_frame_size_(0) {
+      max_datagram_frame_size_(0),
+      clock_(clock) {
   SetMaxPacketLength(kDefaultMaxPacketSize);
   if (!framer_->version().UsesTls()) {
     // QUIC+TLS negotiates the maximum datagram frame size via the
