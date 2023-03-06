@@ -1945,9 +1945,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns true if |address| is known server address.
   bool IsKnownServerAddress(const QuicSocketAddress& address) const;
 
-  // Flips the Spin Bit according to the Internal Spin Bit logic.
-  void FlipSpinBit(SerializedPacket* packet);
-
   QuicConnectionContext context_;
 
   QuicFramer framer_;

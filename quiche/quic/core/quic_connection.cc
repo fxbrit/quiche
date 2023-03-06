@@ -4055,44 +4055,9 @@ void QuicConnection::MaybeCreateMultiPortPath() {
 
 void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
   packet_creator_.MaybeUpdateLatestRtt(
-    sent_packet_manager_.GetRttStats()->latest_rtt()
-    )
+    sent_packet_manager_.GetRttStats()->latest_rtt());
   // The caller of this function is responsible for checking CanWrite().
   WritePacket(&packet);
-}
-
-void QuicConnection::FlipSpinBit(SerializedPacket* packet) {
-  // Only on IETF short header and client side.
-  if (version().HasIetfInvariantHeader() &&
-      packet->encryption_level == ENCRYPTION_FORWARD_SECURE &&
-      perspective_ == Perspective::IS_CLIENT)
-  {
-    QuicTime now = clock_->Now();
-    QuicTime interval = packet_creator_.GetSpinBitInterval();
-    // If we are past the current marking interval reset it and flip the Spin Bit. On first
-    // iteration interval is 0.
-    if (now >= interval)
-    {
-      QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
-      // Below line sets a fixed marking interval for debugging.
-      // QuicTime::Delta latest_rtt = QuicTime::Delta::FromMilliseconds(50);
-      // The latest_rtt could be 0 if no valid update occurred.
-      if (!latest_rtt.IsZero())
-      {
-          packet_creator_.SetSpinBitInterval(now + latest_rtt);
-          QUIC_DVLOG(0) << ENDPOINT
-                        << "Measured latest_rtt is: " << latest_rtt.ToDebuggingValue();
-          QUIC_DVLOG(1) << ENDPOINT
-                        << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
-                        << " to: " << packet_creator_.GetSpinBitInterval().ToDebuggingValue();
-          bool spin_bit = packet_creator_.GetCurrentSpinBit();
-          packet_creator_.SetCurrentSpinBit(!spin_bit);
-          QUIC_DVLOG(0) << ENDPOINT
-                        << "Inverting spin_bit from: " << spin_bit
-                        << " to: " << packet_creator_.GetCurrentSpinBit();
-      }
-    }
-  }
 }
 
 void QuicConnection::SendAck() {
