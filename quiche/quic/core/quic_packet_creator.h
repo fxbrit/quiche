@@ -322,23 +322,26 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   bool has_ack() const { return packet_.has_ack; }
 
-  // Setter method for current_spin_bit.
-  void SetCurrentSpinBit(bool spin_bit) {current_spin_bit = spin_bit;}
+  // Setter method for current_spin_bit_.
+  void SetCurrentSpinBit(bool spin_bit) { current_spin_bit_ = spin_bit; }
 
-  // Getter method for current_spin_bit.
-  bool GetCurrentSpinBit() const {return current_spin_bit;}
+  // Getter method for current_spin_bit_.
+  bool GetCurrentSpinBit() const { return current_spin_bit_; }
 
-  // Setter method for spin_bit_interval.
-  void SetSpinBitInterval(QuicTime interval) {spin_bit_interval = interval;}
+  // Setter method for spin_bit_interval_.
+  void SetSpinBitInterval(QuicTime interval) { spin_bit_interval_ = interval; }
 
-  // Getter method for spin_bit_interval.
-  QuicTime GetSpinBitInterval() const {return spin_bit_interval;}
+  // Getter method for spin_bit_interval_.
+  QuicTime GetSpinBitInterval() const { return spin_bit_interval_; }
 
-  // Setter method for latest_rtt_received_.
-  void SetLatestRttReceived(QuicTime::Delta latest_rtt) { latest_rtt_received_ = latest_rtt; }
+  // Setter method for latest_rtt_.
+  void SetLatestRtt(QuicTime::Delta latest_rtt) { latest_rtt_ = latest_rtt; }
 
-  // Getter method for latest_rtt_received_.
-  QuicTime::Delta GetLatestRttReceived() const { return latest_rtt_received_; }
+  // Getter method for latest_rtt_.
+  QuicTime::Delta GetLatestRtt() const { return latest_rtt_; }
+
+  // Update latest_rtt_ if needed.
+  void MaybeUpdateLatestRtt(QuicTime::Delta latest_rtt);
 
   // Flips the Spin Bit according to the Internal Spin Bit logic.
   void MaybeFlipSpinBit();
@@ -716,14 +719,14 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   QuicByteCount max_datagram_frame_size_;
 
   // Spin Bit value manintained internally by the endpoint.
-  bool current_spin_bit = false;
+  bool current_spin_bit_ = false;
 
   // Interval used for Internal Spin Bit marking. It is the sum of the
   // current time and the latest RTT.
-  QuicTime spin_bit_interval = QuicTime::Zero();
+  QuicTime spin_bit_interval_ = QuicTime::Zero();
 
-  // Latest RTT received from the connection.
-  QuicTime::Delta latest_rtt_received_ = QuicTime::Delta::Zero();
+  // Latest RTT received from the Connection.
+  QuicTime::Delta latest_rtt_ = QuicTime::Delta::Zero();
 
   // Clock used to compute the Internal Spin Bit marking interval.
   const QuicClock* clock_;

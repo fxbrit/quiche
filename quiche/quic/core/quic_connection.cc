@@ -2495,8 +2495,9 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
   // a SHLO from the server, leading to two different decrypters at the
   // server.)
   ScopedPacketFlusher flusher(this);
-  QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
-  return packet_creator_.ConsumeData(id, write_length, offset, state, latest_rtt);
+  return packet_creator_.ConsumeData(
+      id, write_length, offset, state,
+      sent_packet_manager_.GetRttStats()->latest_rtt());
 }
 
 bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
@@ -4053,6 +4054,9 @@ void QuicConnection::MaybeCreateMultiPortPath() {
 }
 
 void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
+  packet_creator_.MaybeUpdateLatestRtt(
+    sent_packet_manager_.GetRttStats()->latest_rtt()
+    )
   // The caller of this function is responsible for checking CanWrite().
   WritePacket(&packet);
 }

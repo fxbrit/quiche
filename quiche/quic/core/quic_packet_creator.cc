@@ -1354,11 +1354,7 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
   QUIC_BUG_IF(quic_bug_12398_17, has_handshake && fin)
       << ENDPOINT << "Handshake packets should never send a fin";
 
-  QUIC_DVLOG(1) << ENDPOINT
-                << "Updating latest_rtt_receveid from: "
-                << GetLatestRttReceived().ToDebuggingValue()
-                << " to: " << latest_rtt.ToDebuggingValue();
-  SetLatestRttReceived(latest_rtt);
+  MaybeUpdateLatestRtt(latest_rtt);
 
   // To make reasoning about crypto frames easier, we don't combine them with
   // other retransmittable frames in a single packet.
@@ -1719,8 +1715,8 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
   if (!HasIetfLongHeader()) {
     MaybeFlipSpinBit();
     QUIC_DVLOG(1) << ENDPOINT << "Packet number: " << header->packet_number
-                  << ", Spin Bit: " << current_spin_bit;
-    header->spin_bit = current_spin_bit;
+                  << ", Spin Bit: " << current_spin_bit_
+    header->spin_bit = current_spin_bit_;
     return;
   }
   header->long_packet_type =
@@ -1728,28 +1724,34 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
 }
 
 void QuicPacketCreator::MaybeFlipSpinBit() {
-  QuicTime interval = GetSpinBitInterval();
+  QuicTime interval = spin_bit_interval_;
   QuicTime now = clock_->Now();
   if (now >= interval)
     {
-      QuicTime::Delta latest_rtt = GetLatestRttReceived();
-      // Below line sets a fixed marking interval for debugging.
-      // QuicTime::Delta latest_rtt = QuicTime::Delta::FromMilliseconds(50);
-      if (!latest_rtt.IsZero())
+      if (!latest_rtt_.IsZero())
       {
-          SetSpinBitInterval(now + latest_rtt);
+          spin_bit_interval_ = now + latest_rtt_;
           QUIC_DVLOG(0) << ENDPOINT
-                        << "Measured latest_rtt is: " << latest_rtt.ToDebuggingValue();
+                        << "Measured latest_rtt_ is: " << latest_rtt_.ToDebuggingValue();
           QUIC_DVLOG(1) << ENDPOINT
-                        << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
-                        << " to: " << GetSpinBitInterval().ToDebuggingValue();
-          bool spin_bit = GetCurrentSpinBit();
-          SetCurrentSpinBit(!spin_bit);
+                        << "Updating spin_bit_interval_ from: " << interval.ToDebuggingValue()
+                        << " to: " << spin_bit_interval_.ToDebuggingValue();
+          current_spin_bit_ = !current_spin_bit_;
           QUIC_DVLOG(0) << ENDPOINT
-                        << "Inverting spin_bit from: " << spin_bit
-                        << " to: " << GetCurrentSpinBit();
+                        << "Inverting current_spin_bit_ from: " << !current_spin_bit_
+                        << " to: " << current_spin_bit_;
       }
     }
+}
+
+void QuicPacketCreator::MaybeUpdateLatestRtt(QuicTime::Delta latest_rtt) {
+  if (!latest_rtt.IsZero() && latest_rtt != latest_rtt_) {
+      QUIC_DVLOG(1) << ENDPOINT
+                << "Updating latest_rtt_ from: "
+                << latest_rtt_.ToDebuggingValue()
+                << " to: " << latest_rtt.ToDebuggingValue();
+      latest_rtt_ = latest_rtt;
+  }
 }
 
 size_t QuicPacketCreator::GetSerializedFrameLength(const QuicFrame& frame) {
