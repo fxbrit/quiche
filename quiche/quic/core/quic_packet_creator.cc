@@ -1715,7 +1715,7 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
   if (!HasIetfLongHeader()) {
     MaybeFlipSpinBit();
     QUIC_DVLOG(1) << ENDPOINT << "Packet number: " << header->packet_number
-                  << ", Spin Bit: " << current_spin_bit_
+                  << ", Spin Bit: " << current_spin_bit_;
     header->spin_bit = current_spin_bit_;
     return;
   }
