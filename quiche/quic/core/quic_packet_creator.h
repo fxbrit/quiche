@@ -346,6 +346,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Flips the Spin Bit according to the Internal Spin Bit logic.
   void MaybeFlipSpinBit();
 
+  // After a migration the Connection ID is changed and the RTT stats are
+  // reset: according to the RFC 9000 we should reset the Spin Bit.
+  void ResetSpinBit();
+
   bool has_stop_waiting() const { return packet_.has_stop_waiting; }
 
   // Sets the encrypter to use for the encryption level and updates the max

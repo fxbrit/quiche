@@ -1744,6 +1744,12 @@ void QuicPacketCreator::MaybeFlipSpinBit() {
     }
 }
 
+void QuicPacketCreator::ResetSpinBit() {
+  current_spin_bit_ = false;
+  spin_bit_interval_ = QuicTime::Zero();
+  latest_rtt_ = QuicTime::Delta::Zero();
+}
+
 void QuicPacketCreator::MaybeUpdateLatestRtt(QuicTime::Delta latest_rtt) {
   if (!latest_rtt.IsZero() && latest_rtt != latest_rtt_) {
       QUIC_DVLOG(1) << ENDPOINT

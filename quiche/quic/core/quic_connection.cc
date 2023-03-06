@@ -1150,6 +1150,7 @@ void QuicConnection::OnSuccessfulMigration(bool is_port_change) {
   // TODO(b/159074035): notify SentPacketManger with RTT sample from probing.
   if (version().HasIetfQuicFrames() && !is_port_change) {
     sent_packet_manager_.OnConnectionMigration(/*reset_send_algorithm=*/true);
+    packet_creator_.ResetSpinBit();
   }
 }
 
@@ -6707,8 +6708,6 @@ void QuicConnection::CancelPathValidation() {
   path_validator_.CancelPathValidation();
 }
 
-// On path migration update Connection ID: if it returns true
-// we should reset Spin Bit and marking interval.
 bool QuicConnection::UpdateConnectionIdsOnMigration(
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address) {
@@ -6799,8 +6798,6 @@ bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
       }
       return false;
     }
-    // If we are here Connection ID has been updated as result
-    // of a path migration.
     if (packet_creator_.GetServerConnectionId().length() !=
         default_path_.server_connection_id.length()) {
       packet_creator_.FlushCurrentPacket();
