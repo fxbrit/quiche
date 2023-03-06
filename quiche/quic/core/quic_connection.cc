@@ -1455,9 +1455,12 @@ bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
     return false;
   }
   processing_ack_frame_ = true;
+  // Possible RTT update via QuicSentPacketManager.
   sent_packet_manager_.OnAckFrameStart(
       largest_acked, ack_delay_time,
       idle_network_detector_.time_of_last_received_packet());
+  packet_creator_.MaybeUpdateLatestRtt(
+    sent_packet_manager_.GetRttStats()->latest_rtt());
   return true;
 }
 
@@ -4054,8 +4057,6 @@ void QuicConnection::MaybeCreateMultiPortPath() {
 }
 
 void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
-  packet_creator_.MaybeUpdateLatestRtt(
-    sent_packet_manager_.GetRttStats()->latest_rtt());
   // The caller of this function is responsible for checking CanWrite().
   WritePacket(&packet);
 }
@@ -7068,8 +7069,11 @@ void QuicConnection::OnMultiPortPathProbingSuccess(
   if (multi_port_stats_ != nullptr) {
     auto now = clock_->Now();
     auto time_delta = now - start_time;
+    // Direct RTT update without going through QuicSentPacketManager.
     multi_port_stats_->rtt_stats.UpdateRtt(time_delta, QuicTime::Delta::Zero(),
                                            now);
+    packet_creator_.MaybeUpdateLatestRtt(
+      sent_packet_manager_.GetRttStats()->latest_rtt());
     if (is_path_degrading_) {
       multi_port_stats_->rtt_stats_when_default_path_degrading.UpdateRtt(
           time_delta, QuicTime::Delta::Zero(), now);
