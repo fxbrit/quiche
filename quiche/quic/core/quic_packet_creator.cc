@@ -1694,6 +1694,7 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
   header->destination_connection_id = GetDestinationConnectionId();
   header->destination_connection_id_included =
       GetDestinationConnectionIdIncluded();
+  QUIC_DVLOG(1) << ENDPOINT << "destination_connection_id: " << header->destination_connection_id;
   header->source_connection_id = GetSourceConnectionId();
   header->source_connection_id_included = GetSourceConnectionIdIncluded();
   header->reset_flag = false;
@@ -1748,6 +1749,8 @@ void QuicPacketCreator::ResetSpinBit() {
   current_spin_bit_ = false;
   spin_bit_interval_ = QuicTime::Zero();
   latest_rtt_ = QuicTime::Delta::Zero();
+  QUIC_DVLOG(0) << ENDPOINT
+                << "Resetting current_spin_bit_";
 }
 
 void QuicPacketCreator::MaybeUpdateLatestRtt(QuicTime::Delta latest_rtt) {
@@ -2082,6 +2085,7 @@ void QuicPacketCreator::SetServerConnectionIdIncluded(
 void QuicPacketCreator::SetServerConnectionId(
     QuicConnectionId server_connection_id) {
   server_connection_id_ = server_connection_id;
+  ResetSpinBit();
 }
 
 void QuicPacketCreator::SetClientConnectionId(

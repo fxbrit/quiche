@@ -1150,7 +1150,6 @@ void QuicConnection::OnSuccessfulMigration(bool is_port_change) {
   // TODO(b/159074035): notify SentPacketManger with RTT sample from probing.
   if (version().HasIetfQuicFrames() && !is_port_change) {
     sent_packet_manager_.OnConnectionMigration(/*reset_send_algorithm=*/true);
-    packet_creator_.ResetSpinBit();
   }
 }
 
