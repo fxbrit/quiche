@@ -24,10 +24,12 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
+#include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_coalesced_packet.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -35,6 +37,9 @@
 #include "quiche/common/quiche_circular_deque.h"
 
 namespace quic {
+
+class QuicClock;
+
 namespace test {
 class QuicPacketCreatorPeer;
 }
@@ -111,9 +116,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   };
 
   QuicPacketCreator(QuicConnectionId server_connection_id, QuicFramer* framer,
-                    DelegateInterface* delegate);
+                    DelegateInterface* delegate, const QuicClock* clock);
   QuicPacketCreator(QuicConnectionId server_connection_id, QuicFramer* framer,
-                    QuicRandom* random, DelegateInterface* delegate);
+                    QuicRandom* random, DelegateInterface* delegate,
+                    const QuicClock* clock);
   QuicPacketCreator(const QuicPacketCreator&) = delete;
   QuicPacketCreator& operator=(const QuicPacketCreator&) = delete;
 
@@ -316,17 +322,33 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   bool has_ack() const { return packet_.has_ack; }
 
-  // Setter method for current_spin_bit.
-  void SetCurrentSpinBit(bool spin_bit) {current_spin_bit = spin_bit;}
+  // Setter method for current_spin_bit_.
+  void SetCurrentSpinBit(bool spin_bit) { current_spin_bit_ = spin_bit; }
 
-  // Getter method for current_spin_bit.
-  bool GetCurrentSpinBit() const {return current_spin_bit;}
+  // Getter method for current_spin_bit_.
+  bool GetCurrentSpinBit() const { return current_spin_bit_; }
 
-  // Setter method for spin_bit_interval.
-  void SetSpinBitInterval(QuicTime interval) {spin_bit_interval = interval;}
+  // Setter method for spin_bit_interval_.
+  void SetSpinBitInterval(QuicTime interval) { spin_bit_interval_ = interval; }
 
-  // Getter method for spin_bit_interval.
-  QuicTime GetSpinBitInterval() const {return spin_bit_interval;}
+  // Getter method for spin_bit_interval_.
+  QuicTime GetSpinBitInterval() const { return spin_bit_interval_; }
+
+  // Setter method for latest_rtt_.
+  void SetLatestRtt(QuicTime::Delta latest_rtt) { latest_rtt_ = latest_rtt; }
+
+  // Getter method for latest_rtt_.
+  QuicTime::Delta GetLatestRtt() const { return latest_rtt_; }
+
+  // Update latest_rtt_ if needed.
+  void MaybeUpdateLatestRtt(QuicTime::Delta latest_rtt);
+
+  // Flips the Spin Bit according to the Internal Spin Bit logic.
+  void MaybeFlipSpinBit();
+
+  // After a migration the Connection ID is changed and the RTT stats are
+  // reset: according to the RFC 9000 we should reset the Spin Bit.
+  void ResetSpinBit();
 
   bool has_stop_waiting() const { return packet_.has_stop_waiting; }
 
@@ -369,7 +391,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // accommodate, the padding will overflow to the next packet(s).
   QuicConsumedData ConsumeData(QuicStreamId id, size_t write_length,
                                QuicStreamOffset offset,
-                               StreamSendingState state);
+                               StreamSendingState state,
+                               QuicTime::Delta latest_rtt);
 
   // Sends as many data only packets as allowed by the send algorithm and the
   // available iov.
@@ -700,11 +723,17 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   QuicByteCount max_datagram_frame_size_;
 
   // Spin Bit value manintained internally by the endpoint.
-  bool current_spin_bit = false;
+  bool current_spin_bit_ = false;
 
   // Interval used for Internal Spin Bit marking. It is the sum of the
   // current time and the latest RTT.
-  QuicTime spin_bit_interval = QuicTime::Zero();
+  QuicTime spin_bit_interval_ = QuicTime::Zero();
+
+  // Latest RTT received from the Connection.
+  QuicTime::Delta latest_rtt_ = QuicTime::Delta::Zero();
+
+  // Clock used to compute the Internal Spin Bit marking interval.
+  const QuicClock* clock_;
 
 };
 

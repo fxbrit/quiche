@@ -23,10 +23,12 @@
 #include "quiche/quic/core/frames/quic_path_challenge_frame.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
 #include "quiche/quic/core/quic_chaos_protector.h"
+#include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
@@ -104,13 +106,15 @@ class ScopedPacketContextSwitcher {
 
 QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
                                      QuicFramer* framer,
-                                     DelegateInterface* delegate)
+                                     DelegateInterface* delegate,
+                                     const QuicClock* clock)
     : QuicPacketCreator(server_connection_id, framer, QuicRandom::GetInstance(),
-                        delegate) {}
+                        delegate, clock) {}
 
 QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
                                      QuicFramer* framer, QuicRandom* random,
-                                     DelegateInterface* delegate)
+                                     DelegateInterface* delegate,
+                                     const QuicClock* clock)
     : delegate_(delegate),
       debug_delegate_(nullptr),
       framer_(framer),
@@ -130,7 +134,8 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       flusher_attached_(false),
       fully_pad_crypto_handshake_packets_(true),
       latched_hard_max_packet_length_(0),
-      max_datagram_frame_size_(0) {
+      max_datagram_frame_size_(0),
+      clock_(clock) {
   SetMaxPacketLength(kDefaultMaxPacketSize);
   if (!framer_->version().UsesTls()) {
     // QUIC+TLS negotiates the maximum datagram frame size via the
@@ -1337,7 +1342,8 @@ bool QuicPacketCreator::ConsumeRetransmittableControlFrame(
 QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
                                                 size_t write_length,
                                                 QuicStreamOffset offset,
-                                                StreamSendingState state) {
+                                                StreamSendingState state,
+                                                QuicTime::Delta latest_rtt) {
   QUIC_BUG_IF(quic_bug_10752_21, !flusher_attached_)
       << ENDPOINT
       << "Packet flusher is not attached when "
@@ -1347,6 +1353,9 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
   bool fin = state != NO_FIN;
   QUIC_BUG_IF(quic_bug_12398_17, has_handshake && fin)
       << ENDPOINT << "Handshake packets should never send a fin";
+
+  MaybeUpdateLatestRtt(latest_rtt);
+
   // To make reasoning about crypto frames easier, we don't combine them with
   // other retransmittable frames in a single packet.
   if (has_handshake && HasPendingRetransmittableFrames()) {
@@ -1685,6 +1694,7 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
   header->destination_connection_id = GetDestinationConnectionId();
   header->destination_connection_id_included =
       GetDestinationConnectionIdIncluded();
+  QUIC_DVLOG(1) << ENDPOINT << "destination_connection_id: " << header->destination_connection_id;
   header->source_connection_id = GetSourceConnectionId();
   header->source_connection_id_included = GetSourceConnectionIdIncluded();
   header->reset_flag = false;
@@ -1704,13 +1714,53 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
   header->length_length = GetLengthLength();
   header->remaining_packet_length = 0;
   if (!HasIetfLongHeader()) {
+    MaybeFlipSpinBit();
     QUIC_DVLOG(1) << ENDPOINT << "Packet number: " << header->packet_number
-                  << ", Spin Bit: " << current_spin_bit;
-    header->spin_bit = current_spin_bit;
+                  << ", Spin Bit: " << current_spin_bit_;
+    header->spin_bit = current_spin_bit_;
     return;
   }
   header->long_packet_type =
       EncryptionlevelToLongHeaderType(packet_.encryption_level);
+}
+
+void QuicPacketCreator::MaybeFlipSpinBit() {
+  QuicTime interval = spin_bit_interval_;
+  QuicTime now = clock_->Now();
+  if (now >= interval)
+    {
+      if (!latest_rtt_.IsZero())
+      {
+          spin_bit_interval_ = now + latest_rtt_;
+          QUIC_DVLOG(0) << ENDPOINT
+                        << "Measured latest_rtt_ is: " << latest_rtt_.ToDebuggingValue();
+          QUIC_DVLOG(1) << ENDPOINT
+                        << "Updating spin_bit_interval_ from: " << interval.ToDebuggingValue()
+                        << " to: " << spin_bit_interval_.ToDebuggingValue();
+          current_spin_bit_ = !current_spin_bit_;
+          QUIC_DVLOG(0) << ENDPOINT
+                        << "Inverting current_spin_bit_ from: " << !current_spin_bit_
+                        << " to: " << current_spin_bit_;
+      }
+    }
+}
+
+void QuicPacketCreator::ResetSpinBit() {
+  current_spin_bit_ = false;
+  spin_bit_interval_ = QuicTime::Zero();
+  latest_rtt_ = QuicTime::Delta::Zero();
+  QUIC_DVLOG(0) << ENDPOINT
+                << "Resetting current_spin_bit_";
+}
+
+void QuicPacketCreator::MaybeUpdateLatestRtt(QuicTime::Delta latest_rtt) {
+  if (!latest_rtt.IsZero() && latest_rtt != latest_rtt_) {
+      QUIC_DVLOG(1) << ENDPOINT
+                << "Updating latest_rtt_ from: "
+                << latest_rtt_.ToDebuggingValue()
+                << " to: " << latest_rtt.ToDebuggingValue();
+      latest_rtt_ = latest_rtt;
+  }
 }
 
 size_t QuicPacketCreator::GetSerializedFrameLength(const QuicFrame& frame) {
@@ -2035,6 +2085,7 @@ void QuicPacketCreator::SetServerConnectionIdIncluded(
 void QuicPacketCreator::SetServerConnectionId(
     QuicConnectionId server_connection_id) {
   server_connection_id_ = server_connection_id;
+  ResetSpinBit();
 }
 
 void QuicPacketCreator::SetClientConnectionId(

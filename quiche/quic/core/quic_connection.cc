@@ -308,7 +308,7 @@ QuicConnection::QuicConnection(
           arena_.New<MultiPortProbingAlarmDelegate>(this), &arena_)),
       visitor_(nullptr),
       debug_visitor_(nullptr),
-      packet_creator_(server_connection_id, &framer_, random_generator_, this),
+      packet_creator_(server_connection_id, &framer_, random_generator_, this, clock_),
       last_received_packet_info_(clock_->ApproximateNow()),
       sent_packet_manager_(perspective, clock_, random_generator_, &stats_,
                            GetDefaultCongestionControlType()),
@@ -1455,9 +1455,12 @@ bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
     return false;
   }
   processing_ack_frame_ = true;
+  // Possible RTT update via QuicSentPacketManager.
   sent_packet_manager_.OnAckFrameStart(
       largest_acked, ack_delay_time,
       idle_network_detector_.time_of_last_received_packet());
+  packet_creator_.MaybeUpdateLatestRtt(
+    sent_packet_manager_.GetRttStats()->latest_rtt());
   return true;
 }
 
@@ -2495,7 +2498,9 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
   // a SHLO from the server, leading to two different decrypters at the
   // server.)
   ScopedPacketFlusher flusher(this);
-  return packet_creator_.ConsumeData(id, write_length, offset, state);
+  return packet_creator_.ConsumeData(
+      id, write_length, offset, state,
+      sent_packet_manager_.GetRttStats()->latest_rtt());
 }
 
 bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
@@ -4052,43 +4057,8 @@ void QuicConnection::MaybeCreateMultiPortPath() {
 }
 
 void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
-  FlipSpinBit(&packet);
   // The caller of this function is responsible for checking CanWrite().
   WritePacket(&packet);
-}
-
-void QuicConnection::FlipSpinBit(SerializedPacket* packet) {
-  // Only on IETF short header and client side.
-  if (version().HasIetfInvariantHeader() &&
-      packet->encryption_level == ENCRYPTION_FORWARD_SECURE &&
-      perspective_ == Perspective::IS_CLIENT)
-  {
-    QuicTime now = clock_->Now();
-    QuicTime interval = packet_creator_.GetSpinBitInterval();
-    // If we are past the current marking interval reset it and flip the Spin Bit. On first
-    // iteration interval is 0.
-    if (now >= interval)
-    {
-      QuicTime::Delta latest_rtt = sent_packet_manager_.GetRttStats()->latest_rtt();
-      // Below line sets a fixed marking interval for debugging.
-      // QuicTime::Delta latest_rtt = QuicTime::Delta::FromMilliseconds(50);
-      // The latest_rtt could be 0 if no valid update occurred.
-      if (!latest_rtt.IsZero())
-      {
-          packet_creator_.SetSpinBitInterval(now + latest_rtt);
-          QUIC_DVLOG(0) << ENDPOINT
-                        << "Measured latest_rtt is: " << latest_rtt.ToDebuggingValue();
-          QUIC_DVLOG(1) << ENDPOINT
-                        << "Updating spin_bit_interval from: " << interval.ToDebuggingValue()
-                        << " to: " << packet_creator_.GetSpinBitInterval().ToDebuggingValue();
-          bool spin_bit = packet_creator_.GetCurrentSpinBit();
-          packet_creator_.SetCurrentSpinBit(!spin_bit);
-          QUIC_DVLOG(0) << ENDPOINT
-                        << "Inverting spin_bit from: " << spin_bit
-                        << " to: " << packet_creator_.GetCurrentSpinBit();
-      }
-    }
-  }
 }
 
 void QuicConnection::SendAck() {
@@ -7095,8 +7065,11 @@ void QuicConnection::OnMultiPortPathProbingSuccess(
   if (multi_port_stats_ != nullptr) {
     auto now = clock_->Now();
     auto time_delta = now - start_time;
+    // Direct RTT update without going through QuicSentPacketManager.
     multi_port_stats_->rtt_stats.UpdateRtt(time_delta, QuicTime::Delta::Zero(),
                                            now);
+    packet_creator_.MaybeUpdateLatestRtt(
+      sent_packet_manager_.GetRttStats()->latest_rtt());
     if (is_path_degrading_) {
       multi_port_stats_->rtt_stats_when_default_path_degrading.UpdateRtt(
           time_delta, QuicTime::Delta::Zero(), now);
