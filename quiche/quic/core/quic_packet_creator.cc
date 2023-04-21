@@ -1725,18 +1725,14 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
 }
 
 void QuicPacketCreator::MaybeFlipSpinBit() {
-  QuicTime interval = spin_bit_interval_;
-  QuicTime now = clock_->Now();
-  if (now >= interval)
+  QuicTime current_time = clock_->Now();
+  if (current_time >= inside_rtt_interval_)
     {
       if (!latest_rtt_.IsZero())
       {
-          spin_bit_interval_ = now + latest_rtt_;
+          inside_rtt_interval_ = current_time + latest_rtt_;
           QUIC_DVLOG(0) << ENDPOINT
                         << "Measured latest_rtt_ is: " << latest_rtt_.ToDebuggingValue();
-          QUIC_DVLOG(1) << ENDPOINT
-                        << "Updating spin_bit_interval_ from: " << interval.ToDebuggingValue()
-                        << " to: " << spin_bit_interval_.ToDebuggingValue();
           current_spin_bit_ = !current_spin_bit_;
           QUIC_DVLOG(0) << ENDPOINT
                         << "Inverting current_spin_bit_ from: " << !current_spin_bit_
@@ -1747,7 +1743,7 @@ void QuicPacketCreator::MaybeFlipSpinBit() {
 
 void QuicPacketCreator::ResetSpinBit() {
   current_spin_bit_ = false;
-  spin_bit_interval_ = QuicTime::Zero();
+  inside_rtt_interval_ = QuicTime::Zero();
   latest_rtt_ = QuicTime::Delta::Zero();
   QUIC_DVLOG(0) << ENDPOINT
                 << "Resetting current_spin_bit_";

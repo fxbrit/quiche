@@ -3469,7 +3469,6 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       // a normal(non-GSO) packet, so the kernel can return EMSGSIZE and we will
       // not close the connection.
       if (is_mtu_discovery && writer_->IsBatchMode()) {
-        QUIC_DVLOG(1) << ENDPOINT << "Using batch mode.";
         result = writer_->Flush();
       }
       break;

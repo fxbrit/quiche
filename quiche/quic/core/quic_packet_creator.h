@@ -328,11 +328,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Getter method for current_spin_bit_.
   bool GetCurrentSpinBit() const { return current_spin_bit_; }
 
-  // Setter method for spin_bit_interval_.
-  void SetSpinBitInterval(QuicTime interval) { spin_bit_interval_ = interval; }
+  // Setter method for inside_rtt_interval_.
+  void SetInsideRttInterval(QuicTime interval) { inside_rtt_interval_ = interval; }
 
-  // Getter method for spin_bit_interval_.
-  QuicTime GetSpinBitInterval() const { return spin_bit_interval_; }
+  // Getter method for inside_rtt_interval_.
+  QuicTime GetInsideRttInterval() const { return inside_rtt_interval_; }
 
   // Setter method for latest_rtt_.
   void SetLatestRtt(QuicTime::Delta latest_rtt) { latest_rtt_ = latest_rtt; }
@@ -343,7 +343,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Update latest_rtt_ if needed.
   void MaybeUpdateLatestRtt(QuicTime::Delta latest_rtt);
 
-  // Flips the Spin Bit according to the Internal Spin Bit logic.
+  // Flips the Spin Bit according to the Inside RTT monitoring logic.
   void MaybeFlipSpinBit();
 
   // After a migration the Connection ID is changed and the RTT stats are
@@ -725,14 +725,14 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Spin Bit value manintained internally by the endpoint.
   bool current_spin_bit_ = false;
 
-  // Interval used for Internal Spin Bit marking. It is the sum of the
-  // current time and the latest RTT.
-  QuicTime spin_bit_interval_ = QuicTime::Zero();
+  // Interval used for Inside RTT marking.
+  // It is the sum of the current time and the latest RTT.
+  QuicTime inside_rtt_interval_ = QuicTime::Zero();
 
   // Latest RTT received from the Connection.
   QuicTime::Delta latest_rtt_ = QuicTime::Delta::Zero();
 
-  // Clock used to compute the Internal Spin Bit marking interval.
+  // Clock used to compute the Inside RTT interval.
   const QuicClock* clock_;
 
 };
