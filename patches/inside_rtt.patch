@@ -1,5 +1,5 @@
 diff --git a/quiche/quic/core/quic_connection.cc b/quiche/quic/core/quic_connection.cc
-index 9d4f882e..76afe861 100644
+index 9d4f882e..309a921b 100644
 --- a/quiche/quic/core/quic_connection.cc
 +++ b/quiche/quic/core/quic_connection.cc
 @@ -308,7 +308,7 @@ QuicConnection::QuicConnection(
@@ -35,15 +35,7 @@ index 9d4f882e..76afe861 100644
  }
  
  bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
-@@ -3464,6 +3469,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
-       // a normal(non-GSO) packet, so the kernel can return EMSGSIZE and we will
-       // not close the connection.
-       if (is_mtu_discovery && writer_->IsBatchMode()) {
-+        QUIC_DVLOG(1) << ENDPOINT << "Using batch mode.";
-         result = writer_->Flush();
-       }
-       break;
-@@ -7059,8 +7065,11 @@ void QuicConnection::OnMultiPortPathProbingSuccess(
+@@ -7059,8 +7064,11 @@ void QuicConnection::OnMultiPortPathProbingSuccess(
    if (multi_port_stats_ != nullptr) {
      auto now = clock_->Now();
      auto time_delta = now - start_time;
@@ -84,7 +76,7 @@ index 8a506fdf..b4b3a21f 100644
    return writer->WriteUInt8(type);
  }
 diff --git a/quiche/quic/core/quic_packet_creator.cc b/quiche/quic/core/quic_packet_creator.cc
-index 2a0974f4..c47a8096 100644
+index 2a0974f4..d0aa49fc 100644
 --- a/quiche/quic/core/quic_packet_creator.cc
 +++ b/quiche/quic/core/quic_packet_creator.cc
 @@ -23,10 +23,12 @@
@@ -157,7 +149,7 @@ index 2a0974f4..c47a8096 100644
    header->source_connection_id = GetSourceConnectionId();
    header->source_connection_id_included = GetSourceConnectionIdIncluded();
    header->reset_flag = false;
-@@ -1704,12 +1714,55 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
+@@ -1704,12 +1714,51 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
    header->length_length = GetLengthLength();
    header->remaining_packet_length = 0;
    if (!HasIetfLongHeader()) {
@@ -172,18 +164,14 @@ index 2a0974f4..c47a8096 100644
  }
  
 +void QuicPacketCreator::MaybeFlipSpinBit() {
-+  QuicTime interval = spin_bit_interval_;
-+  QuicTime now = clock_->Now();
-+  if (now >= interval)
++  QuicTime current_time = clock_->Now();
++  if (current_time >= inside_rtt_interval_)
 +    {
 +      if (!latest_rtt_.IsZero())
 +      {
-+          spin_bit_interval_ = now + latest_rtt_;
++          inside_rtt_interval_ = current_time + latest_rtt_;
 +          QUIC_DVLOG(0) << ENDPOINT
 +                        << "Measured latest_rtt_ is: " << latest_rtt_.ToDebuggingValue();
-+          QUIC_DVLOG(1) << ENDPOINT
-+                        << "Updating spin_bit_interval_ from: " << interval.ToDebuggingValue()
-+                        << " to: " << spin_bit_interval_.ToDebuggingValue();
 +          current_spin_bit_ = !current_spin_bit_;
 +          QUIC_DVLOG(0) << ENDPOINT
 +                        << "Inverting current_spin_bit_ from: " << !current_spin_bit_
@@ -194,7 +182,7 @@ index 2a0974f4..c47a8096 100644
 +
 +void QuicPacketCreator::ResetSpinBit() {
 +  current_spin_bit_ = false;
-+  spin_bit_interval_ = QuicTime::Zero();
++  inside_rtt_interval_ = QuicTime::Zero();
 +  latest_rtt_ = QuicTime::Delta::Zero();
 +  QUIC_DVLOG(0) << ENDPOINT
 +                << "Resetting current_spin_bit_";
@@ -213,7 +201,7 @@ index 2a0974f4..c47a8096 100644
  size_t QuicPacketCreator::GetSerializedFrameLength(const QuicFrame& frame) {
    size_t serialized_frame_length = framer_->GetSerializedFrameLength(
        frame, BytesFree(), queued_frames_.empty(),
-@@ -2032,6 +2085,7 @@ void QuicPacketCreator::SetServerConnectionIdIncluded(
+@@ -2032,6 +2081,7 @@ void QuicPacketCreator::SetServerConnectionIdIncluded(
  void QuicPacketCreator::SetServerConnectionId(
      QuicConnectionId server_connection_id) {
    server_connection_id_ = server_connection_id;
@@ -222,7 +210,7 @@ index 2a0974f4..c47a8096 100644
  
  void QuicPacketCreator::SetClientConnectionId(
 diff --git a/quiche/quic/core/quic_packet_creator.h b/quiche/quic/core/quic_packet_creator.h
-index 785efb14..c4e87f3f 100644
+index 785efb14..0c924a53 100644
 --- a/quiche/quic/core/quic_packet_creator.h
 +++ b/quiche/quic/core/quic_packet_creator.h
 @@ -24,10 +24,12 @@
@@ -271,11 +259,11 @@ index 785efb14..c4e87f3f 100644
 +  // Getter method for current_spin_bit_.
 +  bool GetCurrentSpinBit() const { return current_spin_bit_; }
 +
-+  // Setter method for spin_bit_interval_.
-+  void SetSpinBitInterval(QuicTime interval) { spin_bit_interval_ = interval; }
++  // Setter method for inside_rtt_interval_.
++  void SetInsideRttInterval(QuicTime interval) { inside_rtt_interval_ = interval; }
 +
-+  // Getter method for spin_bit_interval_.
-+  QuicTime GetSpinBitInterval() const { return spin_bit_interval_; }
++  // Getter method for inside_rtt_interval_.
++  QuicTime GetInsideRttInterval() const { return inside_rtt_interval_; }
 +
 +  // Setter method for latest_rtt_.
 +  void SetLatestRtt(QuicTime::Delta latest_rtt) { latest_rtt_ = latest_rtt; }
@@ -286,7 +274,7 @@ index 785efb14..c4e87f3f 100644
 +  // Update latest_rtt_ if needed.
 +  void MaybeUpdateLatestRtt(QuicTime::Delta latest_rtt);
 +
-+  // Flips the Spin Bit according to the Internal Spin Bit logic.
++  // Flips the Spin Bit according to the Inside RTT monitoring logic.
 +  void MaybeFlipSpinBit();
 +
 +  // After a migration the Connection ID is changed and the RTT stats are
@@ -314,14 +302,14 @@ index 785efb14..c4e87f3f 100644
 +  // Spin Bit value manintained internally by the endpoint.
 +  bool current_spin_bit_ = false;
 +
-+  // Interval used for Internal Spin Bit marking. It is the sum of the
-+  // current time and the latest RTT.
-+  QuicTime spin_bit_interval_ = QuicTime::Zero();
++  // Interval used for Inside RTT marking.
++  // It is the sum of the current time and the latest RTT.
++  QuicTime inside_rtt_interval_ = QuicTime::Zero();
 +
 +  // Latest RTT received from the Connection.
 +  QuicTime::Delta latest_rtt_ = QuicTime::Delta::Zero();
 +
-+  // Clock used to compute the Internal Spin Bit marking interval.
++  // Clock used to compute the Inside RTT interval.
 +  const QuicClock* clock_;
 +
  };
